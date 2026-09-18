@@ -13,6 +13,7 @@
   ],
   "scripts": {
     "install:agentic": "bun scripts/install.ts",
+    "install:pd": "node scripts/install-pd.mjs",
     "dev": "bun scripts/dev.ts",
     "dev:server": "bun run --filter @agentic/server dev",
     "dev:dashboard": "bun run --filter @agentic/dashboard dev",

@@ -64,7 +64,7 @@ function Test-Git {
     if (Get-Command git -ErrorAction SilentlyContinue) {
         Log (git --version)
     } else {
-        Warn "Git not found — git hooks will be skipped"
+        Warn "Git not found - git hooks will be skipped"
     }
 }
 
@@ -80,7 +80,7 @@ function Guess-ProjectsRoot {
 }
 
 function Get-CodeRoot {
-    Log "Projects root is the folder that contains your git repos — not this Agentic OS clone."
+    Log "Projects root is the folder that contains your git repos - not this Agentic OS clone."
     if ($env:AGENTIC_CODE_ROOT) {
         $expanded = $env:AGENTIC_CODE_ROOT -replace "^~", $env:USERPROFILE
         if (-not (Test-Path $expanded)) {
@@ -190,7 +190,7 @@ function Persist-Path {
     }
     if (-not (Test-Path $PROFILE)) {
         @"
-# PowerShell profile — created by Agentic OS installer
+# PowerShell profile - created by Agentic OS installer
 # Adds ~/.local/bin and ~/.bun/bin to PATH for graphify and bun
 
 "@ | Set-Content $PROFILE -Encoding UTF8
@@ -243,7 +243,7 @@ function Invoke-TelegramCli {
     $tsx = Join-Path $Root "node_modules\.bin\tsx.cmd"
     if (-not (Test-Path $tsx)) { $tsx = Join-Path $Root "node_modules\.bin\tsx" }
     if (-not (Test-Path $tsx)) { $tsx = Join-Path $Root "packages\server\node_modules\.bin\tsx.cmd" }
-    if (-not (Test-Path $tsx)) { Die "tsx not found — JavaScript dependencies must be installed first" }
+    if (-not (Test-Path $tsx)) { Die "tsx not found - JavaScript dependencies must be installed first" }
     $setup = Join-Path $Root "packages\server\src\cli\telegram-setup.ts"
     & $tsx $setup @CliArgs
     if ($LASTEXITCODE -ne 0) { throw "telegram-setup $($CliArgs[0]) failed" }
@@ -294,7 +294,7 @@ function Prompt-Telegram {
     } else {
         $reply = Read-Host "  Set up Telegram now? [Y/n]"
         if ($reply -and $reply -notmatch "^[Yy]") {
-            Log "Telegram skipped — set it up later in the dashboard Routines panel"
+            Log "Telegram skipped - set it up later in the dashboard Routines panel"
             return
         }
     }
@@ -302,7 +302,7 @@ function Prompt-Telegram {
     $token = (ConvertFrom-SecureStringPlain $secure).Trim()
     $chatId = (Read-Host "  Chat id").Trim()
     if (-not $token -or -not $chatId) {
-        Warn "Bot token and chat id are required — skipping Telegram. Use the dashboard Routines panel later."
+        Warn "Bot token and chat id are required - skipping Telegram. Use the dashboard Routines panel later."
         return
     }
     Save-Telegram $token $chatId
@@ -339,9 +339,9 @@ function Print-Success($codeRoot, $brainRoot) {
     $telegramStatus = "skipped"
     try { $telegramStatus = (Invoke-TelegramCli status | Out-String).Trim() } catch {}
     Write-Host ""
-    Write-Host "─────────────────────────────────────────────────────────"
+    Write-Host "---------------------------------------------------------"
     Write-Host "  Agentic OS is ready."
-    Write-Host " ─────────────────────────────────────────────────────────"
+    Write-Host " ---------------------------------------------------------"
     Write-Host ""
     Write-Host "  Dashboard:  http://localhost:5173"
     Write-Host "  API:        http://127.0.0.1:3847"
@@ -360,7 +360,7 @@ function Test-Health {
     if (Get-Command graphify -ErrorAction SilentlyContinue) {
         Log "graphify: $(graphify --version 2>$null)"
     } else {
-        Warn "graphify not on PATH — open a new terminal or restart Cursor"
+        Warn "graphify not on PATH - open a new terminal or restart Cursor"
     }
 }
 

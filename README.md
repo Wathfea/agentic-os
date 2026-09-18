@@ -35,6 +35,14 @@ powershell -ExecutionPolicy Bypass -File scripts/install.ps1
 
 Or from the repo folder on any OS: `bun run install:agentic`.
 
+pd overlay (skills + current pd wiki into the Second Brain), after Agentic OS is installed:
+
+```bash
+bun run install:pd
+```
+
+The script asks where the pd repo is, whether to install for Cursor or Claude Code, and where the Second Brain vault lives. Non-interactive: `node scripts/install-pd.mjs --yes --pd /path/to/pd --brain "/path/to/Second Brain" --agent cursor`.
+
 The installer asks **where your git projects already live** (Documents, Developer, `~/work`, …). That folder is not this clone. If `AGENTIC_CODE_ROOT` or `AGENTIC_BRAIN_DIR` is set, those values are used and the matching prompt is skipped.
 
 It also adds tool paths to your shell profile, mints `store/.dashboard-token`, and can save a Telegram connection for Morning mix delivery.
