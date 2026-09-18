@@ -1,0 +1,22 @@
+---
+description: graphify knowledge graph - minimal stub; full workflow in task-loop skill
+alwaysApply: true
+---
+
+<!-- agentic-os-graphify-canonical -->
+
+This project has a graphify knowledge graph at `graphify-out/`.
+
+**Full dev workflow:** use the `task-loop` skill (Intent → Grill → Triage → Act → Verify → Compound). A prompt is a task; `ticket-loop` is an alias.
+
+**Triage (grep vs graphify):**
+- Literal in stack trace, log, config, or env → Grep/Glob/Read first
+- Cross-service or unknown subsystem → extract class/method symbols, then `graphify explain` → `path` → symbol-seeded `query` (never ticket IDs or symptom sentences)
+- Domain rule or prior lesson → brain `wiki/projects/<name>/glossary.md`, `gotchas.md`, and `subsystems.md`
+
+If `graphify-out/wiki/index.md` exists, navigate it before wide graph queries.
+After code edits: `graphify update .`
+
+<!-- agentic-os-graphify-path -->
+Before any graphify command, ensure PATH includes ~/.local/bin:
+export PATH="$HOME/.local/bin:$PATH"

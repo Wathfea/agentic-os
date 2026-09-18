@@ -1,0 +1,12 @@
+node_modules/
+dist/
+*.tsbuildinfo
+package-lock.json
+store/*
+!store/.gitkeep
+!store/agentic.config.example.json
+.DS_Store
+*.local
+.superpowers/
+# agentic-os-graphify
+graphify-out/

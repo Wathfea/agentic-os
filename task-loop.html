@@ -1,0 +1,1859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TASK_LOOP_ · Assemble the stack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070707;
+  --black:#0a0a0a;
+  --dark:#111111;
+  --mid:#1a1a1a;
+  --border:#2a2a2a;
+  --muted:#3d3d3d;
+  --white:#f0f0f0;
+  --subtle:#b8b8b8;
+  --dim:#888888;
+  --ember:#f26b1a;
+  --ember-soft:rgba(242,107,26,0.08);
+  --ember-line:rgba(242,107,26,0.45);
+  --danger:#ff2a2a;
+  --l-sources:#2dd4bf;
+  --l-entities:#e879f9;
+  --l-concepts:#f472b6;
+  --l-projects:#60a5fa;
+  --l-overview:#fbbf24;
+  --l-index:#f26b1a;
+  --font-display:'Space Grotesk',sans-serif;
+  --font-body:'IBM Plex Mono',monospace;
+  --text-display-xl:clamp(3.2rem,9vw,7.5rem);
+  --text-display-lg:clamp(2.2rem,5vw,4.2rem);
+  --text-heading:clamp(1.35rem,2.6vw,2.1rem);
+  --text-subhead:1.125rem;
+  --text-body:0.9375rem;
+  --text-small:0.75rem;
+  --text-micro:0.625rem;
+  --s1:4px;--s2:8px;--s3:16px;--s4:24px;--s5:32px;--s6:48px;--s7:64px;--s8:96px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  min-height:100vh;
+  background-color:var(--bg);
+  background-image:
+    radial-gradient(ellipse 55% 40% at 50% 0%,rgba(242,107,26,0.07),transparent 60%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='52' height='90' viewBox='0 0 52 90'%3E%3Cg fill='none' stroke='rgba(255,255,255,0.035)' stroke-width='1'%3E%3Cpath d='M26 0 L52 15 L52 45 L26 60 L0 45 L0 15 Z'/%3E%3Cpath d='M52 45 L78 60 L78 90 L52 105 L26 90 L26 60 Z'/%3E%3Cpath d='M0 45 L26 60 L26 90 L0 105 L-26 90 L-26 60 Z'/%3E%3C/g%3E%3C/svg%3E");
+  background-size:auto,52px 90px;
+  background-repeat:no-repeat,repeat;
+  color:var(--white);
+  font-family:var(--font-body);
+  font-size:var(--text-body);
+  line-height:1.6;
+}
+:focus-visible{outline:2px solid var(--ember);outline-offset:2px}
+a{color:inherit}
+p{margin:0}
+ul{margin:0;padding:0;list-style:none}
+code{font-family:var(--font-body);color:var(--ember);font-size:0.92em}
+.wrap{max-width:1240px;margin:0 auto;padding:0 var(--s4)}
+.micro{font-size:var(--text-micro);letter-spacing:0.15em;text-transform:uppercase;line-height:1.4}
+.small{font-size:var(--text-small);line-height:1.5}
+.dim{color:var(--dim)}
+.subtle{color:var(--subtle)}
+.ember{color:var(--ember)}
+.display{font-family:var(--font-display);text-transform:uppercase}
+
+nav{
+  position:sticky;top:0;z-index:20;
+  background:rgba(7,7,7,0.92);
+  border-bottom:1px solid var(--border);
+  backdrop-filter:blur(6px);
+}
+.nav-in{display:flex;align-items:center;justify-content:space-between;gap:var(--s4);height:56px}
+.logo{display:flex;align-items:baseline;gap:8px;text-decoration:none}
+.logo__mark{color:var(--ember);font-size:1.05rem}
+.logo__name{font-family:var(--font-display);font-weight:800;letter-spacing:0.08em;font-size:1.15rem;color:var(--ember)}
+.logo__os{font-family:var(--font-display);font-weight:500;letter-spacing:0.04em;font-size:1.15rem}
+.nav-links{display:flex;align-items:center;gap:12px}
+.nav-links a{font-family:var(--font-display);font-weight:500;font-size:var(--text-micro);letter-spacing:0.15em;text-transform:uppercase;color:var(--dim);text-decoration:none;transition:color 100ms}
+.nav-links a:hover{color:var(--white)}
+.nav-links span{color:var(--muted)}
+.nav-clock{color:var(--dim)}
+@media (max-width:760px){.nav-links{display:none}}
+
+header.hero{padding:var(--s8) 0 var(--s7);border-bottom:1px solid var(--border)}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:var(--s6);align-items:end}
+@media (max-width:900px){.hero-grid{grid-template-columns:1fr}}
+.eyebrow{display:flex;align-items:center;gap:var(--s3);color:var(--dim);margin-bottom:var(--s4)}
+.eyebrow i{display:inline-block;width:8px;height:8px;background:var(--ember);clip-path:polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%)}
+h1.title{
+  margin:0;
+  font-family:var(--font-display);font-weight:800;text-transform:uppercase;
+  font-size:var(--text-display-xl);line-height:0.9;letter-spacing:-0.01em;color:var(--white)
+}
+h1.title em{font-style:normal;color:var(--ember)}
+.cursor-blink::after{content:'_';color:var(--ember);animation:blink 1s steps(2,end) infinite}
+.lede{margin-top:var(--s4);max-width:62ch;color:var(--subtle)}
+.lede strong{color:var(--white);font-weight:500}
+.hero-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:var(--s5)}
+.btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:12px 24px;border:1px solid var(--ember);background:var(--ember);color:var(--black);
+  font-family:var(--font-display);font-weight:500;font-size:0.75rem;letter-spacing:0.15em;text-transform:uppercase;
+  text-decoration:none;border-radius:0;transition:background 100ms,color 100ms
+}
+.btn:hover{background:var(--black);color:var(--ember)}
+.btn--ghost{background:transparent;color:var(--white);border-color:var(--border)}
+.btn--ghost:hover{border-color:var(--ember);color:var(--ember);background:transparent}
+
+.readouts{border:1px solid var(--border);background:rgba(10,10,10,0.85);padding:var(--s3)}
+.readouts__head{display:flex;justify-content:space-between;color:var(--dim);padding-bottom:12px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.readout{display:grid;grid-template-columns:1fr auto;gap:var(--s3);align-items:end;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06)}
+.readout:last-child{border-bottom:0}
+.readout__val{font-family:var(--font-display);font-size:1.5rem;font-weight:700;line-height:1;color:#f6f6f6}
+.readout__bar{grid-column:1/3;height:4px;background:var(--muted)}
+.readout__bar i{display:block;height:100%;background:var(--ember)}
+.coords{display:flex;gap:var(--s4);margin-top:var(--s3);color:var(--ember)}
+
+section{border-bottom:1px solid var(--border)}
+.sec-head{
+  display:flex;align-items:center;justify-content:space-between;gap:var(--s3);
+  padding:14px 0;border-bottom:1px solid var(--border);
+  font-family:var(--font-display);font-weight:600;font-size:0.8rem;letter-spacing:0.14em;text-transform:uppercase
+}
+.sec-head .id{color:var(--ember)}
+.sec-head .plus{color:var(--dim)}
+.sec-body{padding:var(--s7) 0}
+@media (max-width:760px){.sec-body{padding:var(--s6) 0}}
+h2.h{margin:0 0 var(--s3);font-family:var(--font-display);font-weight:700;text-transform:uppercase;font-size:var(--text-heading);line-height:1.1}
+h3.h3{margin:0 0 var(--s2);font-family:var(--font-display);font-weight:600;text-transform:uppercase;letter-spacing:0.08em;font-size:0.85rem;color:#f4f4f4}
+.intro{max-width:66ch;color:var(--subtle);margin-bottom:var(--s6)}
+.intro strong{color:var(--white);font-weight:500}
+
+.grid{display:grid;gap:var(--s3)}
+.grid>*,.hero-grid>*,.steps>*{min-width:0}
+.term{max-width:100%}
+.grid-3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.grid-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (max-width:980px){.grid-3{grid-template-columns:1fr}}
+@media (max-width:760px){.grid-2{grid-template-columns:1fr}}
+
+.panel{border:1px solid var(--border);background:rgba(10,10,10,0.88)}
+.panel__head{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);padding:8px 14px;border-bottom:1px solid var(--border);color:var(--dim)}
+.panel__head b{font-family:var(--font-display);font-weight:600;font-size:var(--text-micro);letter-spacing:0.15em;text-transform:uppercase;color:#f4f4f4}
+.panel__head .tag{color:var(--ember)}
+.panel__body{padding:var(--s3) 14px}
+.panel__body p{color:var(--subtle);font-size:var(--text-small);line-height:1.65}
+.panel__body p+p{margin-top:10px}
+.badge{display:inline-flex;align-items:center;border:1px solid var(--ember);color:var(--ember);padding:2px 8px;font-size:var(--text-micro);letter-spacing:0.15em;text-transform:uppercase;line-height:1.4}
+.badge--info{border-color:rgba(255,255,255,0.18);color:var(--white)}
+.badge--muted{border-color:rgba(255,255,255,0.08);color:var(--dim)}
+.badge--warn{border-color:var(--dim);color:var(--subtle)}
+
+.term{
+  margin:0;padding:12px 14px;background:var(--black);border:1px solid var(--border);
+  font-family:var(--font-body);font-size:var(--text-small);line-height:1.6;color:var(--subtle);
+  white-space:pre;overflow:auto
+}
+.term .k{color:var(--white)}
+.term .e{color:var(--ember)}
+.term .d{color:var(--dim)}
+
+.layers{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--border)}
+@media (max-width:900px){.layers{grid-template-columns:1fr}}
+.layer{padding:var(--s4);border-right:1px solid var(--border)}
+.layer:last-child{border-right:0}
+@media (max-width:900px){.layer{border-right:0;border-bottom:1px solid var(--border)}.layer:last-child{border-bottom:0}}
+.layer__no{color:var(--ember)}
+.layer__name{font-family:var(--font-display);font-weight:700;text-transform:uppercase;font-size:1.35rem;margin:6px 0 2px;letter-spacing:0.02em}
+.layer__what{font-family:var(--font-display);font-weight:500;text-transform:uppercase;letter-spacing:0.15em;font-size:var(--text-micro);color:var(--dim)}
+.layer__desc{margin-top:var(--s3);color:var(--subtle);font-size:var(--text-small);line-height:1.65}
+.layer__bar{margin-top:var(--s3);height:4px;background:var(--muted)}
+.layer__bar i{display:block;height:100%;background:var(--ember)}
+.layer__meta{display:flex;justify-content:space-between;margin-top:6px;color:var(--dim)}
+
+.arch{border:1px solid var(--border);background:rgba(10,10,10,0.9);overflow-x:auto}
+.arch svg{display:block;width:100%;min-width:880px;height:auto}
+.arch text{font-family:var(--font-body)}
+.arch .lbl{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;fill:#888}
+.arch .ttl{font-family:var(--font-display);font-weight:700;font-size:15px;letter-spacing:0.08em;text-transform:uppercase;fill:#f4f4f4}
+.arch .row{font-size:11.5px;fill:#b8b8b8}
+.arch .row .p{fill:#888}
+.arch .row .em{fill:#f26b1a}
+.arch .box{fill:rgba(16,16,16,0.85);stroke:#2a2a2a}
+.arch .box--hot{stroke:#f26b1a}
+.arch .edge{fill:none;stroke:#3d3d3d;stroke-width:1}
+.arch .edge--hot{stroke:#f26b1a;stroke-width:1.2}
+.arch .elbl{font-size:9.5px;letter-spacing:0.12em;text-transform:uppercase;fill:#f26b1a}
+.arch .elbl--dim{fill:#8a8a8a}
+
+.legend{display:flex;flex-wrap:wrap;gap:10px 18px;color:var(--dim);margin-top:12px}
+.legend i{display:inline-block;width:8px;height:8px;margin-right:6px;vertical-align:middle}
+
+.rules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s3)}
+@media (max-width:760px){.rules{grid-template-columns:1fr}}
+.rule{display:grid;grid-template-columns:18px 1fr;gap:10px;padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.06);font-size:var(--text-small);color:var(--subtle)}
+.rule b{color:var(--white);font-weight:500}
+.rule span:first-child{color:var(--ember)}
+.ops{display:flex;flex-wrap:wrap;gap:8px}
+
+.dag{border:1px solid var(--border);background:rgba(10,10,10,0.9);overflow-x:auto}
+.dag svg{display:block;width:100%;min-width:1000px;height:auto}
+.dag .n rect{fill:#141414;stroke:#3d3d3d;stroke-width:1;transition:fill 100ms,stroke 100ms}
+.dag .n text{font-family:var(--font-display);font-size:12.5px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;fill:#f0f0f0;pointer-events:none}
+.dag .n--opt rect{stroke-dasharray:4 3;stroke:#3d3d3d}
+.dag .n--fail rect{stroke:#f26b1a;stroke-dasharray:4 3}
+.dag .n:hover rect{stroke:#f26b1a}
+.dag .n.is-active rect{fill:#f26b1a;stroke:#f26b1a;stroke-dasharray:none}
+.dag .n.is-active text{fill:#0a0a0a}
+.dag .n{cursor:pointer}
+.dag .f{fill:none;stroke:#5a5a5a;stroke-width:1}
+.dag .b{fill:none;stroke:#f26b1a;stroke-width:1.4;stroke-dasharray:5 4}
+.dag .cap{font-family:var(--font-body);font-size:9.5px;letter-spacing:0.15em;text-transform:uppercase;fill:#888}
+.dag .cap--hot{fill:#f26b1a}
+.dag-key{display:flex;flex-wrap:wrap;gap:10px 22px;padding:10px 14px;border-top:1px solid var(--border);color:var(--dim)}
+.dag-key i{display:inline-block;width:22px;height:0;border-top:1px solid #5a5a5a;vertical-align:middle;margin-right:8px}
+.dag-key i.hot{border-top:1.5px dashed var(--ember)}
+.dag-key i.opt{width:14px;height:10px;border:1px dashed #3d3d3d;border-top:1px dashed #3d3d3d}
+.dag-key i.sel{width:14px;height:10px;background:var(--ember);border:0}
+
+.steps{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s3);margin-top:var(--s3)}
+@media (max-width:900px){.steps{grid-template-columns:1fr}}
+.step{
+  position:relative;border:1px solid var(--border);background:rgba(16,16,16,0.72);
+  padding:var(--s3) 14px var(--s3);cursor:pointer;transition:border-color 100ms,background 100ms
+}
+.step:hover{border-color:var(--ember)}
+.step.is-active{border-color:var(--ember);background:var(--ember-soft)}
+.step__head{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:10px}
+.step__id{font-family:var(--font-display);font-weight:700;font-size:1rem;letter-spacing:0.06em;text-transform:uppercase;color:#f4f4f4}
+.step__id em{font-style:normal;color:var(--ember);margin-right:8px}
+.step__one{color:var(--white);font-size:var(--text-small);line-height:1.6}
+.step__kv{display:grid;grid-template-columns:44px 1fr;gap:8px 12px;margin-top:12px}
+.step__kv dt{font-size:var(--text-micro);letter-spacing:0.15em;text-transform:uppercase;color:var(--dim);padding-top:3px}
+.step__kv dd{margin:0;font-size:var(--text-small);color:var(--subtle);line-height:1.6}
+.step__kv dd.note{color:var(--dim)}
+
+.router{border:1px solid var(--border)}
+.router__row{display:grid;grid-template-columns:60px minmax(0,1.2fr) 24px minmax(0,1fr);gap:var(--s3);align-items:center;padding:var(--s3);border-bottom:1px solid var(--border)}
+.router__row:last-child{border-bottom:0}
+.router__row--head{padding:10px var(--s3);color:var(--dim)}
+.router__row--head span{font-size:var(--text-micro);letter-spacing:0.15em;text-transform:uppercase}
+.router__no{font-family:var(--font-display);font-weight:700;font-size:1.25rem;color:var(--ember)}
+.router__sig{color:var(--white);font-size:var(--text-small);line-height:1.6}
+.router__arr{color:var(--ember);text-align:center}
+.router__tool{font-size:var(--text-small);color:var(--subtle);line-height:1.6}
+.router__tool code{color:var(--white)}
+@media (max-width:760px){.router__row{grid-template-columns:44px 1fr}.router__arr{display:none}.router__tool{grid-column:2}.router__row--head .hd-tool{display:none}}
+
+.owners{border:1px solid var(--border)}
+.own{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--s3);padding:12px var(--s3);border-bottom:1px solid var(--border);font-size:var(--text-small)}
+.own:last-child{border-bottom:0}
+.own--head{color:var(--dim);padding:10px var(--s3)}
+.own--head span{font-size:var(--text-micro);letter-spacing:0.15em;text-transform:uppercase}
+.own__k{color:var(--white)}
+.own__v{color:var(--subtle)}
+.own__v code{color:var(--ember)}
+.own--this .own__v code{color:var(--ember)}
+
+.callout{border:1px solid var(--border);border-left:2px solid var(--ember);background:rgba(10,10,10,0.88);padding:var(--s3) var(--s4)}
+.callout .micro{color:var(--ember);margin-bottom:6px}
+.callout p{color:var(--subtle);font-size:var(--text-small);line-height:1.65}
+.callout p+p{margin-top:8px}
+.callout strong{color:var(--white);font-weight:500}
+
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:var(--s3)}
+.chain span{border:1px solid var(--border);padding:6px 10px;font-size:var(--text-micro);letter-spacing:0.12em;text-transform:uppercase;color:var(--white);background:rgba(16,16,16,0.72)}
+.chain span.hot{border-color:var(--ember);color:var(--ember)}
+.chain i{color:var(--ember);font-style:normal}
+
+.gloss-groups{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--s3)}
+@media (max-width:980px){.gloss-groups{grid-template-columns:1fr}}
+.gloss-group{border:1px solid var(--border);background:rgba(10,10,10,0.88)}
+.gloss-group__head{padding:8px 14px;border-bottom:1px solid var(--border);font-family:var(--font-display);font-weight:600;font-size:var(--text-micro);letter-spacing:0.15em;text-transform:uppercase;color:var(--ember)}
+.gloss-term{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.06)}
+.gloss-term:last-child{border-bottom:0}
+.gloss-term__k{font-family:var(--font-display);font-weight:600;font-size:0.82rem;letter-spacing:0.06em;text-transform:uppercase;color:#f4f4f4}
+.gloss-term__k code{font-size:0.92em;color:var(--ember);text-transform:none;letter-spacing:normal}
+.gloss-term__exp{margin-top:6px;font-size:var(--text-small);color:var(--subtle);line-height:1.6}
+.gloss-term__exp strong{color:var(--white);font-weight:500}
+abbr[title]{text-decoration:none;border-bottom:1px dotted rgba(242,107,26,0.45);cursor:help}
+a.out{color:var(--ember);border-bottom:1px solid rgba(242,107,26,0.35);text-decoration:none}
+a.out:hover{border-bottom-color:var(--ember)}
+.kv{display:grid;grid-template-columns:52px 1fr;gap:8px 12px;margin-top:var(--s3)}
+.kv dt{font-size:var(--text-micro);letter-spacing:0.15em;text-transform:uppercase;color:var(--ember);padding-top:2px}
+.kv dd{margin:0;font-size:var(--text-small);color:var(--subtle);line-height:1.65}
+.kv dd a{color:var(--ember);border-bottom:1px solid rgba(242,107,26,0.35);text-decoration:none}
+.kv dd a:hover{border-bottom-color:var(--ember)}
+.needs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--s3)}
+@media (max-width:980px){.needs{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.needs{grid-template-columns:1fr}}
+.need{border:1px solid var(--border);background:rgba(10,10,10,0.88);padding:var(--s3)}
+.need b{display:block;font-family:var(--font-display);font-weight:700;text-transform:uppercase;letter-spacing:0.06em;font-size:0.85rem;margin-bottom:8px}
+.need p{color:var(--subtle);font-size:var(--text-small);line-height:1.6}
+.need .micro{margin-bottom:8px;color:var(--ember)}
+.stack{border:1px solid var(--border);background:rgba(10,10,10,0.9);overflow-x:auto}
+.stack svg{display:block;width:100%;min-width:820px;height:auto}
+.stack text{font-family:var(--font-body)}
+.stack .lbl{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;fill:#888}
+.stack .ttl{font-family:var(--font-display);font-weight:700;font-size:14px;letter-spacing:0.08em;text-transform:uppercase;fill:#f4f4f4}
+.stack .row{font-size:11px;fill:#b8b8b8}
+.stack .box{fill:rgba(16,16,16,0.9);stroke:#2a2a2a}
+.stack .box--hot{stroke:#f26b1a}
+.stack .edge{fill:none;stroke:#3d3d3d;stroke-width:1}
+.stack .edge--hot{stroke:#f26b1a;stroke-width:1.2}
+.deep{margin-top:var(--s6)}
+.setup{display:flex;flex-direction:column;gap:var(--s3)}
+.setup-step{border:1px solid var(--border);background:rgba(10,10,10,0.88)}
+.setup-step__head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s3);padding:10px 14px;border-bottom:1px solid var(--border)}
+.setup-step__head b{font-family:var(--font-display);font-weight:700;text-transform:uppercase;letter-spacing:0.08em;font-size:0.92rem}
+.setup-step__head em{font-style:normal;color:var(--ember);margin-right:8px}
+.setup-step__body{padding:14px}
+.setup-step__body p{color:var(--subtle);font-size:var(--text-small);line-height:1.65;max-width:72ch}
+.setup-step__body p+p{margin-top:10px}
+.prompt{margin-top:var(--s3);border:1px solid var(--border);background:var(--black)}
+.prompt__bar{display:flex;align-items:center;justify-content:space-between;gap:var(--s3);padding:8px 12px;border-bottom:1px solid var(--border)}
+.copy{
+  border:1px solid var(--border);background:transparent;color:var(--white);
+  font-family:var(--font-display);font-size:var(--text-micro);letter-spacing:0.15em;text-transform:uppercase;
+  padding:6px 10px;cursor:pointer
+}
+.copy:hover{border-color:var(--ember);color:var(--ember)}
+.copy.is-done{border-color:var(--ember);color:var(--ember)}
+.prompt pre{margin:0;padding:12px 14px;white-space:pre-wrap;overflow:auto;max-height:min(32rem,70vh);font-family:var(--font-body);font-size:var(--text-small);line-height:1.65;color:var(--subtle)}
+
+body.modal-open{overflow:hidden}
+.needs--skills{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:980px){.needs--skills{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.needs--skills{grid-template-columns:1fr}}
+.need--skill{display:flex;flex-direction:column;cursor:pointer;transition:border-color 100ms}
+.need--skill:hover{border-color:var(--ember)}
+.need--skill p{flex:1}
+.need__acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.skill-bar{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;
+  margin:var(--s4) 0 0;padding:12px 14px;
+  border:1px solid var(--border);background:rgba(10,10,10,0.88)
+}
+.skill-bar p{color:var(--subtle);font-size:var(--text-small);max-width:72ch;margin:0}
+.modal[hidden]{display:none !important}
+.modal{
+  position:fixed;inset:0;z-index:80;
+  display:flex;align-items:center;justify-content:center;
+  padding:var(--s4)
+}
+.modal__backdrop{position:absolute;inset:0;background:rgba(0,0,0,0.78)}
+.modal__panel{
+  position:relative;z-index:1;
+  width:min(960px,100%);
+  max-height:min(90vh,920px);
+  display:flex;flex-direction:column;
+  border:1px solid var(--ember-line);
+  background:#0a0a0a
+}
+.modal__head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:var(--s3);
+  padding:12px 14px;border-bottom:1px solid var(--border)
+}
+.modal__head h3{
+  margin:4px 0 0;font-family:var(--font-display);font-weight:700;
+  text-transform:uppercase;letter-spacing:0.08em;font-size:1.05rem
+}
+.modal__acts{display:flex;flex-wrap:wrap;gap:8px}
+.modal__tabs{
+  display:flex;flex-wrap:wrap;gap:8px;
+  padding:10px 14px;border-bottom:1px solid var(--border)
+}
+.modal__tab{
+  border:1px solid var(--border);background:transparent;color:var(--dim);
+  font-family:var(--font-display);font-size:var(--text-micro);letter-spacing:0.12em;text-transform:uppercase;
+  padding:6px 10px;cursor:pointer
+}
+.modal__tab:hover,.modal__tab.is-on{border-color:var(--ember);color:var(--ember)}
+.modal__body{
+  margin:0;padding:14px 16px;
+  overflow:auto;flex:1;
+  white-space:pre-wrap;
+  font-family:var(--font-body);font-size:var(--text-small);line-height:1.65;color:var(--subtle)
+}
+footer{padding:var(--s5) 0 var(--s7)}
+.hazard{height:12px;background:repeating-linear-gradient(45deg,var(--black),var(--black) 6px,var(--ember) 6px,var(--ember) 12px)}
+.foot{display:flex;flex-wrap:wrap;justify-content:space-between;gap:var(--s3);color:var(--dim);padding-top:var(--s4)}
+
+@keyframes blink{50%{opacity:0}}
+@media (prefers-reduced-motion:no-preference){
+  .hero .up{animation:fade-up 400ms ease-out both}
+  .hero .up:nth-child(2){animation-delay:60ms}
+  .hero .up:nth-child(3){animation-delay:120ms}
+  .hero .up:nth-child(4){animation-delay:180ms}
+  .hero .up:nth-child(5){animation-delay:240ms}
+  @keyframes fade-up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+}
+@media (prefers-reduced-motion:reduce){.cursor-blink::after{animation:none}}
+</style>
+</head>
+<body>
+
+<nav aria-label="Primary">
+  <div class="wrap nav-in">
+    <a class="logo" href="#top"><span class="logo__mark">⊕</span><span class="logo__name">TASK</span><span class="logo__os">LOOP</span></a>
+    <div class="nav-links">
+      <a href="#why">Why</a><span>+</span>
+      <a href="#stack">Stack</a><span>+</span>
+      <a href="#setup">Setup</a><span>+</span>
+      <a href="#need-skills">Skills</a><span>+</span>
+      <a href="#loop">Loop</a><span>+</span>
+      <a href="#triage">Triage</a><span>+</span>
+      <a href="#layers">Roles</a><span>+</span>
+      <a href="#gloss">Glossary</a>
+    </div>
+    <div class="micro nav-clock">OPEN STACK · ASSEMBLE LOCALLY</div>
+  </div>
+</nav>
+
+<main id="top">
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div>
+      <div class="eyebrow micro up"><i aria-hidden="true"></i>//PLAYBOOK · ANY REPO · ANY TEAM</div>
+      <h1 class="title up">TASK<br><em>LOOP</em><span class="cursor-blink"></span></h1>
+      <p class="lede up">A playbook a coding agent follows when you ask it to <strong>do work</strong>. It sits on three open pieces you assemble yourself: a <strong>code graph</strong>, a <strong>compounding markdown wiki</strong>, and a handful of <strong>skills</strong>. No dashboard required. No vendor lock-in. A chat prompt is a task. Jira is optional.</p>
+      <div class="hero-actions up">
+        <a class="btn" href="#stack">The three pieces <span aria-hidden="true">↗</span></a>
+        <a class="btn btn--ghost" href="#setup">Set it up</a>
+      </div>
+    </div>
+    <div class="readouts up" aria-label="What this stack contains">
+      <div class="readouts__head micro"><span>WHAT YOU ASSEMBLE</span><span class="ember">PORTABLE</span></div>
+      <div class="readout"><span class="micro dim">Knowledge layers under the loop</span><span class="readout__val">3</span><span class="readout__bar"><i style="width:100%"></i></span></div>
+      <div class="readout"><span class="micro dim">Triage paths · pick one per task</span><span class="readout__val">3</span><span class="readout__bar"><i style="width:30%"></i></span></div>
+      <div class="readout"><span class="micro dim">Core skills to drop in</span><span class="readout__val">6</span><span class="readout__bar"><i style="width:60%"></i></span></div>
+      <div class="readout"><span class="micro dim">Servers / databases required</span><span class="readout__val">0</span><span class="readout__bar"><i style="width:0%"></i></span></div>
+      <div class="coords micro"><span>X_ GRAPH</span><span>Y_ WIKI</span><span>Z_ SKILLS</span></div>
+    </div>
+  </div>
+</header>
+
+<section id="why">
+  <div class="wrap">
+    <div class="sec-head"><span><span class="id">//WHY</span>&nbsp;&nbsp;THE PROBLEM THIS SOLVES</span><span class="plus">[ + ]</span></div>
+    <div class="sec-body">
+      <h2 class="h">Agents forget. Wikis rot. Diffs bloat.</h2>
+      <p class="intro">Without a loop, a coding agent re-reads the repo every chat, guesses domain words, ships extra abstractions, and files nothing back. The next ticket starts from zero. <strong>Task-loop is the sequence that stops that.</strong> The three pieces under it are how memory actually compounds.</p>
+      <div class="grid grid-3">
+        <div class="panel">
+          <div class="panel__head"><b>WITHOUT A GRAPH</b><span class="tag micro">CODE</span></div>
+          <div class="panel__body"><p>The agent greps by vibe, opens twenty files, and still misses the call path. Orientation is paid again on every task.</p></div>
+        </div>
+        <div class="panel">
+          <div class="panel__head"><b>WITHOUT A WIKI</b><span class="tag micro">DOMAIN</span></div>
+          <div class="panel__body"><p>Withdraw vs delete, t0 vs t1, house rules live in Slack and people's heads. The agent invents synonyms. Humans abandon wikis because bookkeeping is boring — that is exactly what the model is good at.</p></div>
+        </div>
+        <div class="panel">
+          <div class="panel__head"><b>WITHOUT SKILLS</b><span class="tag micro">PROCESS</span></div>
+          <div class="panel__body"><p>Each chat invents a workflow. Some runs skip tests. Some over-build. A skill is a short markdown playbook the agent re-reads so the sequence stays the same.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="wrap">
+    <div class="sec-head"><span><span class="id">//STACK</span>&nbsp;&nbsp;THREE PIECES · WHAT · WHY · WHERE</span><span class="plus">[ + ]</span></div>
+    <div class="sec-body">
+      <h2 class="h">What the loop sits on</h2>
+      <p class="intro">These are not our internal services. They are public tools and a pattern. You install them on your machine, point them at <em>your</em> repos, and the loop tells the agent when to use which one.</p>
+
+      <div class="layers">
+        <article class="layer">
+          <div class="micro layer__no">LAYER_01 · CODE MAP</div>
+          <div class="layer__name display">Graphify</div>
+          <div class="layer__what">a knowledge graph of the repo</div>
+          <dl class="kv">
+            <dt>What</dt>
+            <dd>Open-source CLI that turns a codebase into a queryable graph: classes, methods, files, call paths. Output lives in <code>graphify-out/</code> next to the repo. The agent asks <code>explain</code>, <code>path</code>, and <code>query</code> instead of touring files.</dd>
+            <dt>Why</dt>
+            <dd>Code relationships are structural. Grep finds a string; a graph finds “what calls this.” After a change, <code>graphify update .</code> keeps the map cheap for the next task.</dd>
+            <dt>Get</dt>
+            <dd><a href="https://github.com/Graphify-Labs/graphify" target="_blank" rel="noopener">github.com/Graphify-Labs/graphify</a> · site <a href="https://www.graphify.com" target="_blank" rel="noopener">graphify.com</a><br>PyPI package is <code>graphifyy</code> (two y’s). The command is still <code>graphify</code>.</dd>
+          </dl>
+        </article>
+        <article class="layer">
+          <div class="micro layer__no">LAYER_02 · DOMAIN MEMORY</div>
+          <div class="layer__name display">LLM wiki</div>
+          <div class="layer__what">Karpathy pattern · browsed in Obsidian</div>
+          <dl class="kv">
+            <dt>What</dt>
+            <dd>A folder of markdown the agent compiles and maintains: summaries, glossary, gotchas, subsystem maps. You curate sources and ask questions. The agent does the bookkeeping. There is no “Second Brain app” to download — that name is just one vault. Yours can be called anything.</dd>
+            <dt>Why</dt>
+            <dd>RAG re-discovers knowledge on every question. A wiki compiles it once and keeps it current. Cross-links already exist. Contradictions are already flagged. The next Grill/Triage reads <code>glossary.md</code> and <code>gotchas.md</code> instead of guessing.</dd>
+            <dt>Get</dt>
+            <dd>Pattern (copy into the agent): <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f" target="_blank" rel="noopener">Karpathy llm-wiki gist</a><br>Browse it in <a href="https://obsidian.md/download" target="_blank" rel="noopener">Obsidian</a> — download the app, create an empty vault (a folder). The wiki is the files inside.</dd>
+          </dl>
+        </article>
+        <article class="layer">
+          <div class="micro layer__no">LAYER_03 · HOW THE AGENT WORKS</div>
+          <div class="layer__name display">Skills</div>
+          <div class="layer__what">markdown playbooks in Cursor</div>
+          <dl class="kv">
+            <dt>What</dt>
+            <dd>Small <code>SKILL.md</code> files the agent loads when the work matches. <code>task-loop</code> is the sequence. The others own one job: smallest diff, definition of done, domain language, filing a lesson.</dd>
+            <dt>Why</dt>
+            <dd>Without skills, every chat invents process. With them, Intent always comes before Act, Verify is a command that can fail, and a reusable trap lands in <code>gotchas.md</code>.</dd>
+            <dt>Get</dt>
+            <dd>Cursor reads <code>~/.cursor/skills/&lt;name&gt;/SKILL.md</code>. Open a skill card in Setup for the full file, or paste the combined install prompt. No extra server.</dd>
+          </dl>
+        </article>
+      </div>
+
+      <h2 class="h deep">How they connect</h2>
+      <p class="intro">You talk to the agent. The loop decides the step. Each step uses one layer. Missing graph or wiki is fine — skip that layer, do not fake another team's stack.</p>
+      <div class="stack" role="img" aria-label="You talk to a coding agent. Task-loop routes work to Graphify for code, the LLM wiki for domain knowledge, and skills for process.">
+        <svg viewBox="0 0 1100 280" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="stk" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#f26b1a"/></marker>
+          </defs>
+          <rect class="box box--hot" x="380" y="16" width="340" height="72"/>
+          <text class="lbl" x="396" y="38">//YOU + AGENT</text>
+          <text class="ttl" x="396" y="62">TASK-LOOP SKILL</text>
+          <text class="row" x="396" y="78">Intent → Triage → Act → Verify → Compound</text>
+          <path class="edge--hot" d="M 460 88 L 190 128" marker-end="url(#stk)"/>
+          <path class="edge--hot" d="M 550 88 L 550 128" marker-end="url(#stk)"/>
+          <path class="edge--hot" d="M 640 88 L 910 128" marker-end="url(#stk)"/>
+          <rect class="box" x="40" y="136" width="300" height="120"/>
+          <text class="lbl" x="56" y="158">LAYER_01</text>
+          <text class="ttl" x="56" y="182">GRAPHIFY</text>
+          <text class="row" x="56" y="206">graphify-out/ next to the repo</text>
+          <text class="row" x="56" y="226">explain · path · query · update</text>
+          <rect class="box" x="400" y="136" width="300" height="120"/>
+          <text class="lbl" x="416" y="158">LAYER_02</text>
+          <text class="ttl" x="416" y="182">LLM WIKI + OBSIDIAN</text>
+          <text class="row" x="416" y="206">raw/ immutable · wiki/ agent-owned</text>
+          <text class="row" x="416" y="226">glossary · gotchas · subsystems</text>
+          <rect class="box" x="760" y="136" width="300" height="120"/>
+          <text class="lbl" x="776" y="158">LAYER_03</text>
+          <text class="ttl" x="776" y="182">CURSOR SKILLS</text>
+          <text class="row" x="776" y="206">~/.cursor/skills/</text>
+          <text class="row" x="776" y="226">loop · ponytail · unlazy · grill · compound</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="pieces">
+  <div class="wrap">
+    <div class="sec-head"><span><span class="id">//GET</span>&nbsp;&nbsp;EACH PIECE · DOWNLOAD · MEANING</span><span class="plus">[ + ]</span></div>
+    <div class="sec-body">
+      <div class="grid grid-2" style="gap:var(--s5)">
+        <div>
+          <h2 class="h">Graphify</h2>
+          <p class="intro" style="margin-bottom:var(--s4)">Local-first. No vector database. AST parsing of the repo so the agent can ride a map. Use it when the question is “how does this codebase connect,” not “what does our domain call this.”</p>
+          <div class="callout">
+            <div class="micro">INSTALL</div>
+            <p>Need <a class="out" href="https://docs.astral.sh/uv/" target="_blank" rel="noopener">uv</a> (or pipx). Then:</p>
+          </div>
+<pre class="term" style="margin-top:var(--s3)"><span class="e">uv tool install graphifyy</span>     <span class="d"># package name: two y's</span>
+<span class="e">uv tool update-shell</span>           <span class="d"># puts ~/.local/bin on PATH</span>
+<span class="e">graphify cursor install</span>        <span class="d"># Cursor rule so the agent uses the graph</span>
+<span class="e">cd your-repo &amp;&amp; graphify .</span>     <span class="d"># first build → graphify-out/</span></pre>
+          <p class="small dim" style="margin-top:10px">Wrong package: <code>pip install graphify</code> (one y) is a different tool. Official: <a class="out" href="https://github.com/Graphify-Labs/graphify" target="_blank" rel="noopener">Graphify-Labs/graphify</a>.</p>
+        </div>
+        <div>
+          <h2 class="h">Karpathy LLM wiki</h2>
+          <p class="intro" style="margin-bottom:var(--s4)"><strong>Not a product.</strong> Andrej Karpathy’s idea file: paste it to an agent and instantiate a wiki together. Three layers — immutable <code>raw/</code> sources, agent-owned <code>wiki/</code>, and a schema file (<code>AGENTS.md</code>) that makes the model a librarian instead of a chatbot.</p>
+          <div class="callout">
+            <div class="micro">CORE IDEA</div>
+            <p>Most tools (NotebookLM, file-upload RAG) re-derive answers from chunks every time. The wiki compiles knowledge once: entity pages, concept pages, an <code>index.md</code> catalog. You never (or rarely) write the wiki. You source, ask, and think. The agent files, links, and lints.</p>
+          </div>
+          <p class="small" style="margin-top:var(--s3)"><a class="out" href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f" target="_blank" rel="noopener">gist.github.com/karpathy/…/llm-wiki</a> — copy-paste this. There is no installer.</p>
+        </div>
+        <div>
+          <h2 class="h">Obsidian is the IDE</h2>
+          <p class="intro" style="margin-bottom:var(--s4)">Karpathy’s line: <strong>Obsidian is the IDE, the LLM is the programmer, the wiki is the codebase.</strong> You watch the graph view and follow <code>[[wikilinks]]</code> while the agent edits files. Any editor works — it is just markdown — Obsidian is the nicest browser.</p>
+          <div class="callout">
+            <div class="micro">DOWNLOAD</div>
+            <p><a class="out" href="https://obsidian.md/download" target="_blank" rel="noopener">obsidian.md/download</a> — Windows / macOS / Linux. Create a <strong>new vault</strong> = pick an empty folder. That folder <em>is</em> the wiki. There is nothing named “Second Brain” in the App Store; name the vault whatever you want.</p>
+          </div>
+        </div>
+        <div>
+          <h2 class="h">Pages the loop actually reads</h2>
+          <p class="intro" style="margin-bottom:var(--s4)">You do not need a huge personal wiki on day one. For task-loop to pay off, each repo needs a thin project folder inside the vault:</p>
+<pre class="term"><span class="k">your-vault/</span>
+├── <span class="e">AGENTS.md</span>          <span class="d">schema from the Karpathy gist</span>
+├── <span class="e">index.md</span>           <span class="d">catalog · agent reads this first</span>
+├── <span class="e">log.md</span>             <span class="d">append-only history</span>
+├── <span class="k">raw/</span>               <span class="d">immutable sources · never edit</span>
+└── <span class="k">wiki/projects/&lt;repo&gt;/</span>
+    ├── overview.md    <span class="d">stack + how to Verify here</span>
+    ├── glossary.md    <span class="d">canonical words (Grill)</span>
+    ├── gotchas.md     <span class="d">reusable lessons (Compound)</span>
+    └── subsystems.md  <span class="d">entry symbols for Graphify</span></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="setup">
+  <div class="wrap">
+    <div class="sec-head"><span><span class="id">//SETUP</span>&nbsp;&nbsp;ASSEMBLE IT ON YOUR MACHINE</span><span class="plus">[ + ]</span></div>
+    <div class="sec-body">
+      <h2 class="h">What you need</h2>
+      <p class="intro">Four downloads, then the skill files the agent actually follows. Open a skill for the full markdown. Vault prompts use <code>my-app</code>, <code>/absolute/path/to/my-app</code>, and <code>&lt;path-to-your-vault&gt;</code> — replace those with your repo name and paths before you paste.</p>
+      <div class="needs" style="margin-bottom:var(--s6)">
+        <div class="need">
+          <div class="micro">01</div>
+          <b>Cursor</b>
+          <p>An agent that loads skills from <code>~/.cursor/skills/</code>. Claude Code / Codex also work if you drop the same markdown there.</p>
+        </div>
+        <div class="need">
+          <div class="micro">02</div>
+          <b>Graphify</b>
+          <p><a class="out" href="https://github.com/Graphify-Labs/graphify" target="_blank" rel="noopener">Install the CLI</a>, then build a graph in each repo you care about.</p>
+        </div>
+        <div class="need">
+          <div class="micro">03</div>
+          <b>Obsidian</b>
+          <p><a class="out" href="https://obsidian.md/download" target="_blank" rel="noopener">Download</a>, new vault = empty folder. Optional, but the graph view makes the wiki real.</p>
+        </div>
+        <div class="need">
+          <div class="micro">04</div>
+          <b>Karpathy gist</b>
+          <p><a class="out" href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f" target="_blank" rel="noopener">llm-wiki.md</a> — the idea. The vault prompt below writes a complete <code>AGENTS.md</code> plus folders.</p>
+        </div>
+      </div>
+
+      <h3 class="h3" id="need-skills">Skill files · full copies</h3>
+      <p class="intro">Five loop skills and one vault skill. Each card opens a modal with the complete <code>SKILL.md</code> (and reference files where the skill has them). Copy from the modal into <code>~/.cursor/skills/&lt;name&gt;/</code>, or copy the combined install prompt.</p>
+      <div class="needs needs--skills">
+        <article class="need need--skill">
+          <div class="micro">SKILL · 01 · SEQUENCE</div>
+          <b>task-loop</b>
+          <p>Intent → Grill → Triage → Act → Verify → Review → Compound. A chat prompt is a task. Jira is optional.</p>
+          <div class="need__acts">
+            <button type="button" class="copy" data-open-skill="task-loop">Full skill</button>
+          </div>
+        </article>
+        <article class="need need--skill">
+          <div class="micro">SKILL · 02 · SMALLEST DIFF</div>
+          <b>ponytail</b>
+          <p>YAGNI ladder. Skip the change if it need not exist. Shortest reversible diff that works.</p>
+          <div class="need__acts">
+            <button type="button" class="copy" data-open-skill="ponytail">Full skill</button>
+          </div>
+        </article>
+        <article class="need need--skill">
+          <div class="micro">SKILL · 03 · DEFINITION OF DONE</div>
+          <b>unlazy</b>
+          <p>Before Act on non-trivial work, write CHECK + EXPECT gates. Done requires evidence.</p>
+          <div class="need__acts">
+            <button type="button" class="copy" data-open-skill="unlazy">Full skill</button>
+          </div>
+        </article>
+        <article class="need need--skill">
+          <div class="micro">SKILL · 04 · DOMAIN LANGUAGE</div>
+          <b>grill-with-docs</b>
+          <p>Fuzzy vocabulary goes into wiki/projects/my-app/glossary.md, not repo CONTEXT.md.</p>
+          <div class="need__acts">
+            <button type="button" class="copy" data-open-skill="grill-with-docs">Full skill</button>
+          </div>
+        </article>
+        <article class="need need--skill">
+          <div class="micro">SKILL · 05 · FILE A LESSON</div>
+          <b>compound-fix</b>
+          <p>Reusable patterns into gotchas.md. Never dump every ticket or paste the diff.</p>
+          <div class="need__acts">
+            <button type="button" class="copy" data-open-skill="compound-fix">Full skill</button>
+          </div>
+        </article>
+        <article class="need need--skill">
+          <div class="micro">SKILL · 06 · OPERATE THE VAULT</div>
+          <b>second-brain</b>
+          <p>Router for ingest, query, lint. Read index.md first. Vault writes stay full prose.</p>
+          <div class="need__acts">
+            <button type="button" class="copy" data-open-skill="second-brain">Full skill</button>
+          </div>
+        </article>
+      </div>
+      <div class="skill-bar">
+        <p>Combined install prompt writes every file below as a separate folder. Still replace <code>&lt;path-to-your-vault&gt;</code> after paste if you want a concrete path baked in.</p>
+        <button type="button" class="copy" data-copy-install data-label="Copy install prompt">Copy install prompt</button>
+      </div>
+
+      <div class="setup" style="margin-top:var(--s6)">
+        <article class="setup-step">
+          <div class="setup-step__head"><b><em>/1</em>Create the vault</b><span class="badge badge--muted">once</span></div>
+          <div class="setup-step__body">
+            <p>Install Obsidian. Create a vault on an empty folder (example: <code>~/wiki</code>). Open Cursor on that folder, paste the prompt, let the agent write <code>AGENTS.md</code>, <code>raw/</code>, <code>wiki/</code>, <code>index.md</code>, <code>log.md</code>, and the stub folders.</p>
+            <div class="prompt">
+              <div class="prompt__bar"><span class="micro dim">PROMPT · SCAFFOLD THE WIKI</span><button type="button" class="copy" data-label="Copy">Copy</button></div>
+              <pre>This folder is my Obsidian vault. Instantiate a Karpathy-style LLM wiki here.
+
+Replace YYYY-MM-DD with today's date.
+If you need a sample project name, use my-app — I will add a real repo in the next prompt.
+I browse the vault in Obsidian. Do not add a database, embeddings, vector search, or an MCP server.
+Do not invent domain terms. Do not ingest my personal notes.
+
+Read https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f then write these files exactly (create folders as needed).
+
+=== AGENTS.md ===
+
+# LLM wiki — librarian schema
+
+This vault is a Karpathy-style LLM wiki: an incrementally built, interlinked markdown knowledge base that sits between you (the human) and your raw sources. You curate sources and ask questions. The agent does all the bookkeeping: summarizing, cross-referencing, filing, and keeping the wiki consistent.
+
+Obsidian is the IDE. The agent is the programmer. The wiki is the codebase.
+
+Name the vault whatever you want. There is no product called Second Brain to download.
+
+## Layers
+
+1. **`raw/`** - immutable source documents (articles, papers, transcripts, notes). The agent reads from here but NEVER edits these files. Source of truth. Images live in `raw/assets/`.
+2. **`wiki/`** - agent-owned markdown. Summaries, entity pages, concept pages, an overview, syntheses. The agent creates and maintains everything here.
+3. **Schema** - this file. Conventions + workflows. Co-evolves over time.
+
+## Directory layout
+
+- `raw/` - immutable sources (`raw/assets/` for images)
+- `wiki/sources/` - one summary page per ingested source
+- `wiki/entities/` - people, orgs, tools, products
+- `wiki/concepts/` - ideas, methods, topics
+- `wiki/projects/&lt;name&gt;/` - hand-edited per-repo dev knowledge (overview, glossary, gotchas, subsystems, ticket-checklist, decisions). Replace `&lt;name&gt;` with the git folder name (example: my-app). Distinct from Graphify mirrors.
+- `wiki/handoffs/` - optional Cursor session handoff documents
+- `wiki/overview.md` - the evolving top-level synthesis
+- `projects/&lt;name&gt;/` - optional mirrored Graphify code-graph wikis. Do not hand-edit.
+- `inbox/` - quick capture, triaged later
+- `index.md` - content catalog (read FIRST on every query)
+- `log.md` - append-only chronological record
+- `_templates/note.md` - Obsidian note template
+
+## Page conventions
+
+Every wiki page starts with YAML frontmatter, then a one-line summary, then content:
+
+```markdown
+---
+type: source | entity | concept | synthesis
+tags: [topic1, topic2]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+sources: ["raw/some-article.md"]
+---
+
+# Page Title
+
+**Summary**: One sentence the agent reads to decide relevance.
+
+## Content
+
+...
+
+## Related
+
+- [[Other Page]]
+```
+
+Rules:
+- Use `[[wikilinks]]` to connect pages. A well-linked graph beats a flat folder.
+- Keep pages focused. Split a page covering multiple distinct topics.
+- Use consistent terminology. Add an alias line if a concept has multiple names.
+- Every claim drawn from a source cites that source (path under `raw/` or a URL).
+
+## Operations
+
+### Ingest
+
+When a new source is added to `raw/`:
+1. Read the source.
+2. Discuss key takeaways with the user (unless batch mode).
+3. Write a summary page in `wiki/sources/`.
+4. Update or create relevant `wiki/entities/` and `wiki/concepts/` pages - integrate, do not just file. Flag where new data contradicts existing claims.
+5. Update `index.md`.
+6. Append one line to `log.md`: `## [YYYY-MM-DD] ingest | Title`.
+
+A single source typically touches 10-15 pages.
+
+### Query
+
+1. Read `index.md` first to locate candidate pages.
+2. Read those pages; follow `[[wikilinks]]`.
+3. Answer with citations to the pages/sources used.
+4. **File good answers back** as new wiki pages when they are reusable (a comparison, an analysis, a discovered connection). Explorations should compound, not vanish into chat.
+
+### Compound (dev fixes)
+
+After non-obvious bug fixes or features, file reusable patterns — not every ticket. See the `compound-fix` skill. Default target: `wiki/projects/&lt;name&gt;/gotchas.md` (example: `wiki/projects/my-app/gotchas.md`).
+
+### Grill (domain language)
+
+Before triage when vocabulary is fuzzy, use the `grill-with-docs` skill. Canonical terms go in `wiki/projects/&lt;name&gt;/glossary.md`; hard-to-reverse choices in `wiki/projects/&lt;name&gt;/decisions/`. Not in repo `CONTEXT.md`.
+
+### Handoff (session transfer)
+
+When the user says `/handoff` or asks to save session context for a fresh chat, write to `wiki/handoffs/YYYY-MM-DD-&lt;slug&gt;.md` with YAML frontmatter (`type: handoff`). Update `index.md` (Handoffs section) and append `log.md` (`## [DATE] handoff | Title`). Do not use `/tmp` or project `HANDOFF.md` unless the user explicitly requests project-root output.
+
+### Lint
+
+Periodically health-check the wiki:
+- Contradictions between pages
+- Stale claims superseded by newer sources
+- Orphan pages (no inbound links)
+- Important concepts mentioned but lacking their own page
+- Missing cross-references
+
+## index.md and log.md
+
+- `index.md` is **content-oriented**: a catalog of every page with a link and one-line summary, grouped by category. Updated on every ingest. Read it first when answering.
+- `log.md` is **chronological**: append-only. Keep the `## [YYYY-MM-DD] type | Title` prefix so `grep '^## \[' log.md | tail -5` works.
+
+## Hard rules
+
+- NEVER fabricate. If a fact is missing, say so or leave a `_` placeholder - do not invent.
+- NEVER edit files under `raw/`. They are immutable.
+- NEVER hand-edit `projects/` - it is regenerated from Graphify graphs.
+- Cite sources for every non-obvious claim.
+- **Compressed output is for chat answers ONLY.** Everything written INTO this vault (wiki pages, `index.md`, `log.md`, summaries) must be full, human-readable prose. The vault is a durable artifact browsed in Obsidian; compressing it corrupts readability and cross-references.
+
+## Routing (for the agent)
+
+- Knowledge / research / personal / "what do I know about X" -&gt; this wiki.
+- Code / architecture / "how does this codebase work" -&gt; Graphify (`graphify explain` / `path` / symbol-seeded `query` on the repo graph, or `projects/&lt;name&gt;/` here if a mirror exists).
+- Domain rule / prior lesson -&gt; `wiki/projects/&lt;name&gt;/glossary.md` + `gotchas.md` + `subsystems.md`.
+- Prompted implementation work -&gt; `task-loop` skill (`ticket-loop` is an alias).
+
+=== CLAUDE.md ===
+
+# LLM wiki
+
+The wiki schema, conventions, and ingest/query/lint workflows live in [AGENTS.md](AGENTS.md). Read it before doing anything in this vault. This file exists only for Claude Code parity; AGENTS.md is the single source of truth.
+
+=== index.md ===
+
+---
+type: index
+updated: YYYY-MM-DD
+---
+
+# Index
+
+Content catalog for this LLM wiki. The agent reads this first when answering a query, then drills into the linked pages. Updated on every ingest. See [AGENTS.md](AGENTS.md) for conventions.
+
+## Overview
+
+- [[overview]] - map of work and how projects connect
+
+## Sources
+
+_None yet. Drop a file in `raw/` and ask the agent to ingest it._
+
+## Entities
+
+_None yet._
+
+## Concepts
+
+_None yet._
+
+## Handoffs (session context)
+
+_Session transfers from `/handoff`._
+
+## Projects (dev wiki — hand-edited)
+
+- [[my-app/overview]] - my-app repo, stack, Verify
+- [[my-app/glossary]] - canonical domain language
+- [[my-app/gotchas]] - reusable lessons
+- [[my-app/subsystems]] - graphify entry symbols
+- [[my-app/ticket-checklist]] - per-task workflow
+
+## Projects (Graphify mirrors)
+
+Auto-generated under `projects/&lt;name&gt;/` if you export a graph wiki. Do not hand-edit.
+
+=== log.md ===
+
+# Log
+
+Append-only chronological record of wiki activity (ingests, queries filed back, lint passes). Keep the `## [YYYY-MM-DD] type | Title` prefix so `grep '^## \[' log.md | tail -5` works.
+
+## [YYYY-MM-DD] scaffold | Vault created
+
+=== wiki/overview.md ===
+
+---
+type: synthesis
+tags: [overview]
+updated: YYYY-MM-DD
+---
+
+# Overview
+
+**Summary**: Map of the work this wiki covers. Replace this paragraph with what you actually spend time on. First project wiki: [[my-app/overview]].
+
+## Day-to-day
+
+Most coding time goes to **my-app**. Orientation: Graphify on that repo; lessons compound in [[my-app/gotchas]].
+
+## Quick links
+
+| Question | Start here |
+|----------|------------|
+| How this wiki works | [AGENTS.md](AGENTS.md) |
+| How agents do work | task-loop skill in Cursor |
+| my-app stack + Verify | [[my-app/overview]] |
+
+## Related
+
+- [[my-app/overview]]
+- [[my-app/glossary]]
+
+=== raw/README.md ===
+
+# raw/
+
+Immutable source documents. Drop articles, papers, transcripts, and notes here, then ask the agent to ingest them. The agent reads these but never edits them. Images go in `raw/assets/`.
+
+=== raw/assets/README.md ===
+
+# raw/assets/
+
+Downloaded images and attachments for raw sources.
+
+=== wiki/sources/README.md ===
+
+# wiki/sources/
+
+One agent-written summary page per ingested source. See [../../AGENTS.md](../../AGENTS.md) for the page format.
+
+=== wiki/entities/README.md ===
+
+# wiki/entities/
+
+Agent-written pages for people, organizations, tools, and products. See [../../AGENTS.md](../../AGENTS.md) for the page format.
+
+=== wiki/concepts/README.md ===
+
+# wiki/concepts/
+
+Agent-written pages for ideas, methods, and topics. See [../../AGENTS.md](../../AGENTS.md) for the page format.
+
+=== wiki/handoffs/README.md ===
+
+---
+type: synthesis
+tags: [handoff, workflow]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+
+# Session handoffs
+
+**Summary**: Chat context transfers. One markdown file per handoff — not git, not `/tmp`.
+
+## Naming
+
+`YYYY-MM-DD-&lt;slug&gt;.md` — slug from purpose (e.g. `my-app-auth-fix`).
+
+=== inbox/README.md ===
+
+# inbox/
+
+Quick capture for rough notes. Ask the agent to triage: "look at my inbox and file each note where it belongs."
+
+=== projects/README.md ===
+
+# projects/
+
+Optional mirrored Graphify code-graph wikis, one folder per repo. Do not hand-edit.
+
+=== _templates/note.md ===
+
+---
+type: concept
+tags: []
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+sources: []
+---
+
+# Title
+
+**Summary**: One sentence the agent reads to decide relevance.
+
+## Content
+
+## Related
+
+-
+
+After scaffolding, list the layout in five lines.</pre>
+            </div>
+          </div>
+        </article>
+
+        <article class="setup-step">
+          <div class="setup-step__head"><b><em>/2</em>Add a project wiki for one repo</b><span class="badge badge--muted">per repo</span></div>
+          <div class="setup-step__body">
+            <p>This is what Grill, Triage, Verify, and Compound actually open. Replace <code>my-app</code> with the folder name of the repo and <code>/absolute/path/to/my-app</code> with that repo's path. Run the first prompt in the vault; run the second in the repo.</p>
+            <div class="prompt">
+              <div class="prompt__bar"><span class="micro dim">PROMPT · PROJECT PAGES IN THE VAULT</span><button type="button" class="copy" data-label="Copy">Copy</button></div>
+              <pre>This vault already has AGENTS.md. Add a per-repo dev wiki for one codebase.
+
+Replace every my-app with the git folder name of the repo (example: if the repo is ~/code/checkout, use checkout).
+Replace every /absolute/path/to/my-app with the real repo path.
+Replace YYYY-MM-DD with today's date.
+
+Create wiki/projects/my-app/ with the files below. Create glossary.md now (empty of real terms — Grill fills it). Create decisions/README.md. Update index.md. Append log.md: ## [YYYY-MM-DD] scaffold | my-app project wiki.
+
+Read the repo at /absolute/path/to/my-app if it is available and fill overview.md ## Verify with the exact command that proves a change works in THAT repo. Do not invent domain terms or subsystem symbols. Leave example rows in subsystems.md if you cannot name real symbols yet.
+
+=== wiki/projects/my-app/README.md ===
+
+---
+type: synthesis
+tags: [my-app, project]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+
+# my-app — development wiki
+
+**Summary**: Hand-curated my-app project knowledge — domain language, patterns, gotchas, and domain notes. Distinct from the auto-mirrored Graphify report at `projects/my-app/`.
+
+## Pages
+
+- [[my-app/overview]] — what my-app is and how we work on it
+- [[my-app/glossary]] — canonical domain language (`grill-with-docs` target; created on first grill)
+- [[my-app/gotchas]] — append-only reusable lessons (not every ticket)
+- [[my-app/subsystems]] — graphify entry symbols
+- [[my-app/ticket-checklist]] — per-ticket agent workflow
+
+## Related
+
+- Graph report mirror: `projects/my-app/GRAPH_REPORT.md` — code structure (read-only Graphify export)
+
+=== wiki/projects/my-app/overview.md ===
+
+---
+type: synthesis
+tags: [my-app, project]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+
+# my-app overview
+
+**Summary**: Dev wiki for my-app at `/absolute/path/to/my-app`. Code orientation via Graphify; durable patterns in gotchas and subsystems.
+
+## Repo
+
+- Path: `/absolute/path/to/my-app`
+- Graph: `graphify-out/graph.json`
+- Brain mirror: `projects/my-app/`
+
+## Verify
+
+Read this repo (README, package.json, AGENTS.md) and write the exact command that proves a change works here. Examples: `npm test`, `cargo test`, pest inside a k3d pod. Do not copy another repo's test runner. If you cannot find it, leave one line asking me.
+
+## How we work tickets
+
+1. Capture task context (key, summary, repro).
+2. **Grill** (when terms are fuzzy): `grill-with-docs` → [[my-app/glossary]]; skip for literal stack traces.
+3. Triage: literals → grep; structure → graphify with symbol seeds; domain → [[my-app/glossary]] + [[my-app/gotchas]] + [[my-app/subsystems]].
+4. Fix + verify per section above.
+5. `graphify update .` after code changes.
+6. Reusable insight → [[my-app/gotchas]] via compound-fix.
+
+## Related
+
+- [[my-app/glossary]]
+- [[my-app/gotchas]]
+- [[my-app/subsystems]]
+- [[my-app/ticket-checklist]]
+
+=== wiki/projects/my-app/glossary.md ===
+
+---
+type: synthesis
+tags: [my-app, glossary]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+
+# my-app glossary
+
+**Summary**: Canonical domain language for my-app. Implementation-free — terms only.
+
+## Language
+
+_No terms yet. grill-with-docs writes them when vocabulary is fuzzy. Do not invent terms now._
+
+**ExampleTerm**:
+One or two sentences: what it IS, not what it does.
+_Avoid_: SynonymToBan
+
+## Related
+
+- [[my-app/overview]]
+- [[my-app/subsystems]]
+- [[my-app/gotchas]]
+
+=== wiki/projects/my-app/gotchas.md ===
+
+---
+type: synthesis
+tags: [my-app, gotchas]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+
+# my-app gotchas
+
+**Summary**: Reusable lessons from my-app development — domain rules, non-obvious failure modes, and approaches that failed.
+
+## Format
+
+Each entry:
+
+```markdown
+### Short title
+- **What**: one sentence
+- **Why it matters**: when you'll hit it again
+- **Where**: file/symbol or subsystem
+- **Refs**: ticket key (optional)
+```
+
+## Entries
+
+_No gotchas filed yet. After a non-obvious fix, ask the agent to compound it here._
+
+## Related
+
+- [[my-app/overview]]
+- [[my-app/subsystems]]
+
+=== wiki/projects/my-app/subsystems.md ===
+
+---
+type: synthesis
+tags: [my-app, subsystems]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+
+# my-app subsystems
+
+**Summary**: Entry symbols and typical paths for graphify orientation in my-app. Graphify cannot map symptoms to symbols — this page can.
+
+## Subsystems
+
+| Subsystem | Entry symbols | Notes |
+|-----------|---------------|-------|
+| _example_ | `ExampleService` | _fill after first ticket_ |
+
+Use `graphify explain "&lt;Symbol&gt;"` then `graphify path "&lt;A&gt;" "&lt;B&gt;"` for cross-service flows.
+
+## Related
+
+- [[my-app/overview]]
+- [[my-app/gotchas]]
+
+=== wiki/projects/my-app/ticket-checklist.md ===
+
+---
+type: synthesis
+tags: [my-app, workflow]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+
+# my-app ticket checklist
+
+**Summary**: Copy-paste workflow for tasks on my-app.
+
+## Per ticket
+
+- [ ] Task key + summary + repro in chat
+- [ ] **Grill** if domain language is ambiguous → [[my-app/glossary]] (`grill-with-docs`); else skim glossary for term conflicts
+- [ ] Triage: literal in stack trace → grep; else extract 1–3 class/method symbols → `graphify explain` / `path` / seeded `query`; no symptom sentences as graph seeds
+- [ ] Read brain `glossary.md` + `gotchas.md` + `subsystems.md` when no symbol anchor
+- [ ] Fix + verify (see [[my-app/overview#Verify]])
+- [ ] `graphify update .`
+- [ ] **Worth filing?** → [[my-app/gotchas]] via compound-fix; else skip
+
+## Worth filing when
+
+- Domain rule the task did not explain
+- Same area broke before
+- Dead-end approach (A failed, B worked)
+- Non-obvious edge case
+
+## Skip filing when
+
+- Typo, rename, formatting
+- Fully described in ticket + obvious code change
+- One-off env/local config
+
+## Related
+
+- [[my-app/overview]]
+- [[my-app/glossary]]
+- [[my-app/gotchas]]
+
+=== wiki/projects/my-app/decisions/README.md ===
+
+# my-app decisions
+
+Hard-to-reverse choices. Created by grill-with-docs only when a decision is hard to reverse, surprising without context, and the result of a real trade-off.
+
+File names: `NNNN-slug.md`. Scan for the highest NNNN and increment.</pre>
+            </div>
+            <div class="prompt">
+              <div class="prompt__bar"><span class="micro dim">PROMPT · REPO AGENTS.MD</span><button type="button" class="copy" data-label="Copy">Copy</button></div>
+              <pre>Run this in the my-app repo, not in the vault.
+
+Replace my-app with this repo's folder name.
+Replace &lt;path-to-your-vault&gt; with the absolute path to the Obsidian vault (quote it if it contains spaces).
+Replace /absolute/path/to/my-app with this repo's path if you mention it.
+
+Create or update AGENTS.md so agents know where the wiki and graph live. Do not invent a test stack from another repo.
+
+=== AGENTS.md ===
+
+# my-app — Agent context
+
+Primary work: bugs, features, and tasks on my-app.
+
+## Orientation (code)
+
+Graph: `graphify-out/graph.json`. Prefer `graphify-out/wiki/index.md` when browsing.
+
+- **Structural / cross-service** → `graphify query` or `graphify path` with **symbol seeds** (class, service, method names)
+- **Literal in log / config / ticket ID** → Grep/Glob first, then Read
+- After code edits: `graphify update .` (use `--force` if overwrite refused)
+
+## Orientation (knowledge)
+
+Durable notes live in the LLM wiki vault, not in this repo:
+
+- Vault: `&lt;path-to-your-vault&gt;` (quote the path if it contains spaces)
+- Dev wiki: `wiki/projects/my-app/` (overview, glossary, gotchas, subsystems, ticket-checklist)
+- Concepts: `wiki/concepts/`
+- Code-graph mirror (read-only, optional): `projects/my-app/`
+
+Read vault `index.md` before answering "what do we know about my-app …" questions.
+
+## Task workflow
+
+Follow the `task-loop` skill (`ticket-loop` is an alias). A prompt is a task; Jira is optional.
+
+1. Intent from the prompt or ticket. Non-trivial: `unlazy` gates before Act.
+2. **Grill** (when domain language is fuzzy): `grill-with-docs` → vault `wiki/projects/my-app/glossary.md`. Skip for literal stack traces.
+3. **Triage:**
+   - Stack trace / error names a file or string → Grep/Glob that literal
+   - Cross-service flow, no path → `graphify query "&lt;ServiceClass&gt; &lt;method&gt;"` or `graphify path "A" "B"`
+   - Domain rule / prior lesson → `glossary.md` + `gotchas.md` + `subsystems.md`
+4. Act (ponytail); verify per `wiki/projects/my-app/overview.md` **Verify** (or inferred stack).
+5. `graphify update .` after code changes.
+6. Reusable gotcha → **compound-fix** → `wiki/projects/my-app/gotchas.md`. Skip routine one-liners.
+
+## What not to do
+
+- Do not dump every ticket into the wiki — file **patterns**, not diffs.
+- Do not hand-edit `graphify-out/` or vault `projects/my-app/` (mirrors).
+- Do not run graphify with ticket IDs or vague symptoms — seeds must be code symbols.
+- Do not store domain glossary in repo `CONTEXT.md` — use the vault `glossary.md`.</pre>
+            </div>
+          </div>
+        </article>
+
+        <article class="setup-step">
+          <div class="setup-step__head"><b><em>/3</em>Install Graphify and build the first graph</b><span class="badge badge--muted">per repo</span></div>
+          <div class="setup-step__body">
+            <p>Run this in the repo, not in the vault. After the build, <code>graphify-out/</code> appears. Put <code>~/.local/bin</code> on PATH so agents find the CLI. Replace <code>my-app</code> with this repo's folder name if the prompt writes subsystems back to the vault.</p>
+            <div class="prompt">
+              <div class="prompt__bar"><span class="micro dim">PROMPT · FIRST GRAPH</span><button type="button" class="copy" data-label="Copy">Copy</button></div>
+              <pre>If graphify is missing, install it with: uv tool install graphifyy
+Then: graphify cursor install
+Put ~/.local/bin on PATH: export PATH="$HOME/.local/bin:$PATH"
+Build a graph of this repository (graphify .).
+When it finishes, list the main subsystems as class/method symbols I can use as graphify seeds.
+Write those symbols into the vault page wiki/projects/my-app/subsystems.md (replace my-app with this repo's folder name) if that page exists. Do not invent symbols. Do not query the graph with ticket titles or error-message paraphrases — only code symbols.</pre>
+            </div>
+          </div>
+        </article>
+
+        <article class="setup-step">
+          <div class="setup-step__head"><b><em>/4</em>Drop the skill files</b><span class="badge badge--muted">once</span></div>
+          <div class="setup-step__body">
+            <p>Each skill is a folder under <code>~/.cursor/skills/</code>. Open a card above for the full text, or paste the combined install prompt into a chat that can write those files. One skill owns one job. Do not merge them into a single mega-file.</p>
+            <div class="prompt">
+              <div class="prompt__bar"><span class="micro dim">PROMPT · WRITE THE SKILLS</span><button type="button" class="copy" data-copy-install data-label="Copy">Copy</button></div>
+              <pre>Create Cursor skills under ~/.cursor/skills/ as separate folders.
+
+Use the combined install prompt from the Skill files section (button: Copy install prompt). It contains the full markdown for:
+
+1. task-loop
+2. ponytail
+3. unlazy
+4. grill-with-docs (+ references/glossary-format.md and adr-format.md)
+5. compound-fix
+6. second-brain (+ references for ingest, query, compound, lint, handoff)
+
+Replace &lt;path-to-your-vault&gt; with the absolute path to your Obsidian vault.
+A chat prompt is a task. Jira is optional. Missing wiki or graph: skip that layer.</pre>
+            </div>
+          </div>
+        </article>
+
+        <article class="setup-step">
+          <div class="setup-step__head"><b><em>/5</em>Smoke test on a real task</b><span class="badge">done when</span></div>
+          <div class="setup-step__body">
+            <p>Open the repo in Cursor. Give the agent a real ticket or a small feature. You should see Intent (what done looks like) before code, one triage path, a Verify command that can fail, and — if it taught something — a gotcha, not a dump of the diff. Replace <code>my-app</code> and <code>&lt;path-to-your-vault&gt;</code>.</p>
+            <div class="prompt">
+              <div class="prompt__bar"><span class="micro dim">PROMPT · FIRST TASK</span><button type="button" class="copy" data-label="Copy">Copy</button></div>
+              <pre>Follow the task-loop skill on this request.
+Wiki: &lt;path-to-your-vault&gt;/wiki/projects/my-app/
+Graph: this repo's graphify-out/ if present.
+Replace my-app with this repo's folder name and &lt;path-to-your-vault&gt; with the vault path.
+Do not invent another repo's test stack. If a layer is missing, skip it and say so.
+
+&lt;paste the ticket or the change you want&gt;</pre>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="loop">
+  <div class="wrap">
+    <div class="sec-head"><span><span class="id">//LOOP</span>&nbsp;&nbsp;THE SEQUENCE · 0 → 7</span><span class="plus">[ + ]</span></div>
+    <div class="sec-body">
+      <h2 class="h">Intent → Act → Verify</h2>
+      <p class="intro">Solid lines are the happy path. Dashed ember lines are the repair cycle: a failed <strong>Verify</strong> goes to <strong>Repair</strong>, then back to <strong>Act</strong> — or back to <strong>Triage</strong> when the subsystem assumption was wrong. Dashed boxes are skippable. Click a node or a card.</p>
+
+      <div class="callout" style="margin-bottom:var(--s4)">
+        <div class="micro">WHEN TO RUN</div>
+        <p>Run when the user wants something <strong>done</strong>: implement, fix, refactor, add, wire, review-and-change. Skip factual questions, “what is X”, and read-only explanation with no change.</p>
+      </div>
+
+      <div class="dag">
+        <svg id="loop-dag" viewBox="0 0 1364 236" xmlns="http://www.w3.org/2000/svg" aria-label="Task-loop sequence from branch through compound, with repair cycling back to act and triage">
+          <defs>
+            <marker id="la" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#5a5a5a"/></marker>
+            <marker id="lb" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#f26b1a"/></marker>
+          </defs>
+          <text class="cap" x="12" y="20">HAPPY PATH →</text>
+          <text class="cap cap--hot" x="1000" y="224">← REPAIR CYCLE · SAME CHECK, SMALLER DIFF</text>
+
+          <path class="f" d="M 136 62 L 164 62" marker-end="url(#la)"/>
+          <path class="f" d="M 288 62 L 316 62" marker-end="url(#la)"/>
+          <path class="f" d="M 440 62 L 468 62" marker-end="url(#la)"/>
+          <path class="f" d="M 592 62 L 620 62" marker-end="url(#la)"/>
+          <path class="f" d="M 744 62 L 772 62" marker-end="url(#la)"/>
+          <path class="f" d="M 896 62 L 924 62" marker-end="url(#la)"/>
+          <path class="f" d="M 1048 62 L 1076 62" marker-end="url(#la)"/>
+          <path class="f" d="M 1200 62 L 1228 62" marker-end="url(#la)"/>
+
+          <path class="b" d="M 986 84 L 986 148" marker-end="url(#lb)"/>
+          <path class="b" d="M 924 170 C 880 170, 834 150, 834 88" marker-end="url(#lb)"/>
+          <path class="b" d="M 924 182 C 800 200, 682 190, 682 88" marker-end="url(#lb)"/>
+
+          <g class="n n--opt" data-step="branch" tabindex="0" role="button" aria-label="Step 0 Branch, optional" transform="translate(12,40)"><rect width="124" height="44"/><text x="62" y="27" text-anchor="middle">0 Branch</text></g>
+          <g class="n" data-step="resolve" tabindex="0" role="button" aria-label="Resolve context" transform="translate(164,40)"><rect width="124" height="44"/><text x="62" y="27" text-anchor="middle">Resolve</text></g>
+          <g class="n" data-step="intent" tabindex="0" role="button" aria-label="Step 1 Intent" transform="translate(316,40)"><rect width="124" height="44"/><text x="62" y="27" text-anchor="middle">1 Intent</text></g>
+          <g class="n n--opt" data-step="grill" tabindex="0" role="button" aria-label="Step 1.5 Grill, optional" transform="translate(468,40)"><rect width="124" height="44"/><text x="62" y="27" text-anchor="middle">1.5 Grill</text></g>
+          <g class="n" data-step="triage" tabindex="0" role="button" aria-label="Step 2 Triage" transform="translate(620,40)"><rect width="124" height="44"/><text x="62" y="27" text-anchor="middle">2 Triage</text></g>
+          <g class="n" data-step="act" tabindex="0" role="button" aria-label="Step 3 Act" transform="translate(772,40)"><rect width="124" height="44"/><text x="62" y="27" text-anchor="middle">3 Act</text></g>
+          <g class="n" data-step="verify" tabindex="0" role="button" aria-label="Step 4 Verify" transform="translate(924,40)"><rect width="124" height="44"/><text x="62" y="27" text-anchor="middle">4 Verify</text></g>
+          <g class="n" data-step="review" tabindex="0" role="button" aria-label="Step 6 Review" transform="translate(1076,40)"><rect width="124" height="44"/><text x="62" y="27" text-anchor="middle">6 Review</text></g>
+          <g class="n" data-step="compound" tabindex="0" role="button" aria-label="Step 7 Compound" transform="translate(1228,40)"><rect width="124" height="44"/><text x="62" y="27" text-anchor="middle">7 Compound</text></g>
+          <g class="n n--fail" data-step="repair" tabindex="0" role="button" aria-label="Step 5 Repair, on failure" transform="translate(924,150)"><rect width="124" height="44"/><text x="62" y="27" text-anchor="middle">5 Repair</text></g>
+        </svg>
+        <div class="dag-key micro">
+          <span><i></i>HAPPY PATH</span>
+          <span><i class="hot"></i>REPAIR CYCLE</span>
+          <span><i class="opt"></i>OPTIONAL / ON FAILURE</span>
+          <span><i class="sel"></i>SELECTED</span>
+        </div>
+      </div>
+
+      <div class="steps" id="steps">
+
+        <article class="step" id="step-branch" data-step="branch">
+          <div class="step__head"><span class="step__id"><em>/0</em>Branch</span><span class="badge badge--muted">optional</span></div>
+          <p class="step__one">Map a Jira ticket onto the right git branch before Intent, only when a Jira key is present and the branch-workflow skill exists.</p>
+          <dl class="step__kv">
+            <dt>Do</dt><dd>If the prompt includes a Jira key, URL, or summary and <code>jira-branch-workflow</code> is available, run that skill first. Hotfix from master, feature from develop, matching the project's mapping.</dd>
+            <dt>Skip</dt><dd>No Jira key, the user simply prompted work, or the branch-workflow skill is not installed. Stay on the current branch.</dd>
+            <dt>Note</dt><dd class="note">Optional. Only if your team maps tickets onto branches. Other repos stay on the current branch.</dd>
+          </dl>
+        </article>
+
+        <article class="step" id="step-resolve" data-step="resolve">
+          <div class="step__head"><span class="step__id"><em>/—</em>Resolve context</span><span class="badge">required</span></div>
+          <p class="step__one">Identify the repo, project name, and which knowledge layers actually exist before planning the change.</p>
+          <dl class="step__kv">
+            <dt>Do</dt><dd>Repo path is the workspace root. Project name is the folder basename (or whatever you named the wiki project). Read <code>wiki/projects/&lt;name&gt;/</code> if it exists. Prefer <code>graphify-out/wiki/index.md</code>, then <code>graph.json</code>. Put <code>~/.local/bin</code> on PATH before Graphify.</dd>
+            <dt>Skip</dt><dd>A missing wiki or graph is not a failure — skip that layer. Do not invent another repo's verify stack.</dd>
+            <dt>Note</dt><dd class="note">How tests run (npm test, Xcode, a k8s pod, …) is a property of this repo, not of the loop.</dd>
+          </dl>
+        </article>
+
+        <article class="step" id="step-intent" data-step="intent">
+          <div class="step__head"><span class="step__id"><em>/1</em>Intent</span><span class="badge">required</span></div>
+          <p class="step__one">Write observable success criteria before touching code. Done is a visible outcome, not a vibe.</p>
+          <dl class="step__kv">
+            <dt>Do</dt><dd>Capture what done looks like from the ticket fields or from the prompt itself. For non-trivial work, write <code>unlazy</code> gates before Act: a <strong>CHECK</strong> (command that can fail) and <strong>EXPECT</strong> (success token its output must contain).</dd>
+            <dt>Skip</dt><dd>Do not skip Intent. Do skip unlazy gates for typo, rename, and comment-only one-liners.</dd>
+            <dt>Note</dt><dd class="note">Unlazy owns when done is allowed. The loop owns the sequence. Do not invert those layers.</dd>
+          </dl>
+        </article>
+
+        <article class="step" id="step-grill" data-step="grill">
+          <div class="step__head"><span class="step__id"><em>/1.5</em>Grill</span><span class="badge badge--muted">optional</span></div>
+          <p class="step__one">Stress-test fuzzy domain language against the project glossary before triage, so the change uses the project's words.</p>
+          <dl class="step__kv">
+            <dt>Do</dt><dd>Invoke <code>grill-with-docs</code> when vocabulary is fuzzy, or when the change is a new behavior or a cross-subsystem design. Canonical terms go in <code>wiki/projects/&lt;name&gt;/glossary.md</code>.</dd>
+            <dt>Skip</dt><dd>Literal file or line in a stack trace, an obvious one-liner, or the glossary already covers every term in the success criteria.</dd>
+            <dt>Note</dt><dd class="note">Grill writes into the project wiki, not into repo CONTEXT.md.</dd>
+          </dl>
+        </article>
+
+        <article class="step" id="step-triage" data-step="triage">
+          <div class="step__head"><span class="step__id"><em>/2</em>Triage</span><span class="badge">required</span></div>
+          <p class="step__one">Pick exactly one search path. The signal in the prompt decides the tool — not a habit of grepping everything or querying the graph with a ticket title.</p>
+          <dl class="step__kv">
+            <dt>Do</dt><dd>Literals in a stack trace, log, config, env, or path → Grep / Glob / Read. Unknown cross-service flow with a graph → extract 1–3 class or method symbols, then <code>graphify explain</code> → <code>path</code> → <code>query</code>. Domain rule or prior lesson → glossary, gotchas, subsystems.</dd>
+            <dt>Skip</dt><dd>Never skip triage on implementation work. If there is no graph, grep. Never seed Graphify with symptom sentences or ticket keys.</dd>
+            <dt>Note</dt><dd class="note">Read only the files the chosen path points to. Do not tour the repo.</dd>
+          </dl>
+        </article>
+
+        <article class="step" id="step-act" data-step="act">
+          <div class="step__head"><span class="step__id"><em>/3</em>Act</span><span class="badge">required</span></div>
+          <p class="step__one">Ship the smallest reversible diff that fixes the root cause once, using the current repo's conventions.</p>
+          <dl class="step__kv">
+            <dt>Do</dt><dd>Climb the <code>ponytail</code> ladder (<abbr title="You Aren't Gonna Need It">YAGNI</abbr>): ask whether the change needs to exist at all, reuse what is here, then ship the minimum code that works. One guard in the shared function beats a guard per caller.</dd>
+            <dt>Skip</dt><dd>Do not skip Act when the user asked for a change. Prefer a cheap failing test first when an obvious unit or service target exists; otherwise one line why, then Act.</dd>
+            <dt>Note</dt><dd class="note">Prefer no new test over a bad test. Do not import another repo's stack because it is familiar.</dd>
+          </dl>
+        </article>
+
+        <article class="step" id="step-verify" data-step="verify">
+          <div class="step__head"><span class="step__id"><em>/4</em>Verify</span><span class="badge">required</span></div>
+          <p class="step__one">Run the CHECK that can fail in this repo. Confidence is not evidence.</p>
+          <dl class="step__kv">
+            <dt>Do</dt><dd>If unlazy gates exist, those CHECKs are verify. Else the project's overview Verify section. Else infer from <strong>this</strong> repo: <code>package.json</code> test script, Xcode target, README, or AGENTS.md.</dd>
+            <dt>Skip</dt><dd>Trivial one-liners need no test. Still Review if code changed.</dd>
+            <dt>Note</dt><dd class="note">Where tests run is owned by this project, not by the loop skill.</dd>
+          </dl>
+        </article>
+
+        <article class="step" id="step-repair" data-step="repair">
+          <div class="step__head"><span class="step__id"><em>/5</em>Repair</span><span class="badge badge--warn">on failure</span></div>
+          <p class="step__one">A failed CHECK is new context. Narrow the diff, re-triage if the assumption was wrong, and re-run the same CHECK.</p>
+          <dl class="step__kv">
+            <dt>Do</dt><dd>Treat the failure as observation, not a cue to widen scope. If triage picked the wrong subsystem, go back to Triage. Otherwise return to Act with a smaller change.</dd>
+            <dt>Skip</dt><dd>Skip Repair when Verify passed. Do not start a second unrelated fix inside the repair cycle.</dd>
+            <dt>Note</dt><dd class="note">Stop when gates are met, the work is blocked, the request is out of scope, or the next step would be destructive or unapproved.</dd>
+          </dl>
+        </article>
+
+        <article class="step" id="step-review" data-step="review">
+          <div class="step__head"><span class="step__id"><em>/6</em>Review</span><span class="badge">required</span></div>
+          <p class="step__one">Read the full branch or worktree diff before claiming done, not only the last commit.</p>
+          <dl class="step__kv">
+            <dt>Do</dt><dd>If <code>review-checklist</code> exists, run it on the full diff. If not, read the diff yourself. Hunt for regressions in every surface that shares the state you touched.</dd>
+            <dt>Skip</dt><dd>Skip for non-code work: wiki-only pages and answers.</dd>
+            <dt>Note</dt><dd class="note">Review is still required after a trivial one-liner if code changed.</dd>
+          </dl>
+        </article>
+
+        <article class="step" id="step-compound" data-step="compound">
+          <div class="step__head"><span class="step__id"><em>/7</em>Compound</span><span class="badge">required</span></div>
+          <p class="step__one">File the reusable insight, not the diff. Then update the code graph if this repo has one.</p>
+          <dl class="step__kv">
+            <dt>Do</dt><dd>If the work taught a pattern and a project wiki exists, run <code>compound-fix</code> into <code>wiki/projects/&lt;name&gt;/gotchas.md</code>. Then <code>graphify update .</code> when the repo has a graph.</dd>
+            <dt>Skip</dt><dd>Skip filing for typos, renames, formatting, obvious one-liners, and issues fully described in the ticket plus an obvious change.</dd>
+            <dt>Note</dt><dd class="note">Do not dump every ticket into the wiki. Patterns compound; diffs do not.</dd>
+          </dl>
+        </article>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="triage">
+  <div class="wrap">
+    <div class="sec-head"><span><span class="id">//TRIAGE</span>&nbsp;&nbsp;ROUTER · ONE SIGNAL, ONE TOOL</span><span class="plus">[ + ]</span></div>
+    <div class="sec-body">
+      <h2 class="h">Triage router</h2>
+      <p class="intro">Pick one path. <strong>No graph means grep.</strong> Never seed Graphify with a ticket key or a symptom sentence — seeds are code symbols.</p>
+      <div class="router">
+        <div class="router__row router__row--head"><span>#</span><span>SIGNAL IN THE PROMPT</span><span></span><span class="hd-tool">TOOL</span></div>
+        <div class="router__row">
+          <span class="router__no">01</span>
+          <span class="router__sig">Literal in a stack trace, log, config, env, or path</span>
+          <span class="router__arr">→</span>
+          <span class="router__tool"><code>Grep</code> / <code>Glob</code> / <code>Read</code> that literal. Then read only what it points to.</span>
+        </div>
+        <div class="router__row">
+          <span class="router__no">02</span>
+          <span class="router__sig">Cross-service or unknown subsystem, and <code>graphify-out/</code> exists</span>
+          <span class="router__arr">→</span>
+          <span class="router__tool">Extract 1–3 class/method symbols → <code>graphify explain</code> → <code>graphify path A B</code> → symbol-seeded <code>graphify query</code>. Navigate <code>wiki/index.md</code> first.</span>
+        </div>
+        <div class="router__row">
+          <span class="router__no">03</span>
+          <span class="router__sig">Domain rule or prior lesson</span>
+          <span class="router__arr">→</span>
+          <span class="router__tool">Wiki <code>glossary.md</code> + <code>gotchas.md</code> + <code>subsystems.md</code> under <code>wiki/projects/&lt;name&gt;/</code>.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="layers">
+  <div class="wrap">
+    <div class="sec-head"><span><span class="id">//LAYERS</span>&nbsp;&nbsp;WHO OWNS WHAT · STOP RULES</span><span class="plus">[ + ]</span></div>
+    <div class="sec-body">
+      <div class="grid grid-2" style="gap:var(--s5)">
+        <div>
+          <h2 class="h">Who owns what</h2>
+          <p class="intro" style="margin-bottom:var(--s4)">Do not invert these layers. The loop is the sequence — not the definition of done, and not the product of the change.</p>
+          <div class="owners">
+            <div class="own own--head"><span>OWNS</span><span>SKILL</span></div>
+            <div class="own own--this"><span class="own__k">Sequence</span><span class="own__v"><code>task-loop</code> — this page</span></div>
+            <div class="own"><span class="own__k">What to build</span><span class="own__v"><code>ponytail</code></span></div>
+            <div class="own"><span class="own__k">When “done” is allowed</span><span class="own__v"><code>unlazy</code></span></div>
+            <div class="own"><span class="own__k">Domain language</span><span class="own__v"><code>grill-with-docs</code> → glossary, decisions</span></div>
+            <div class="own"><span class="own__k">Lesson filed back</span><span class="own__v"><code>compound-fix</code> → gotchas.md</span></div>
+            <div class="own"><span class="own__k">Jira branch mapping</span><span class="own__v"><code>jira-branch-workflow</code> (opt-in, only if your team uses it)</span></div>
+            <div class="own"><span class="own__k">Where tests run</span><span class="own__v">this project's Verify / overlay rules</span></div>
+          </div>
+        </div>
+        <div>
+          <h2 class="h">Stop rules</h2>
+          <p class="intro" style="margin-bottom:var(--s4)">Leave the loop when gates are met, the work is blocked, the request is out of scope, or the next step would be destructive or unapproved. <strong>Failure is not a license to widen the diff.</strong></p>
+          <div class="grid" style="gap:var(--s3)">
+            <div class="panel">
+              <div class="panel__head"><b>HAPPY PATH</b><span class="tag micro">SOLID</span></div>
+              <div class="panel__body">
+                <p>Branch (if Jira) → resolve context → Intent → Grill if language is fuzzy → one triage path → smallest Act → Verify → Review the full diff → Compound only a reusable lesson → <code>graphify update .</code></p>
+                <div class="chain">
+                  <span>Intent</span><i>→</i><span>Triage</span><i>→</i><span>Act</span><i>→</i><span>Verify</span><i>→</i><span>Review</span><i>→</i><span class="hot">Compound</span>
+                </div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel__head"><b>REPAIR CYCLE</b><span class="tag micro">DASHED</span></div>
+              <div class="panel__body">
+                <p>Failed CHECK → Repair. Narrow the change. If the subsystem assumption was wrong, return to Triage. Re-run the <strong>same</strong> CHECK, not a new one invented to make the patch look green.</p>
+                <div class="chain">
+                  <span>Verify</span><i>⇢</i><span class="hot">Repair</span><i>⇢</i><span>Act</span><i>|</i><span>Triage</span><i>⇢</i><span>Verify</span>
+                </div>
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel__head"><b>COMPOUND LOOP</b><span class="tag micro">MEMORY</span></div>
+              <div class="panel__body">
+                <p>A fix that taught something becomes a pattern in <code>wiki/projects/&lt;name&gt;/gotchas.md</code>. The next Triage reads it before touching code. The graph is refreshed so the next orientation is cheap. This is how the system gets faster with every task.</p>
+                <div class="chain">
+                  <span>Fix</span><i>→</i><span class="hot">compound-fix</span><i>→</i><span>gotchas.md</span><i>→</i><span class="hot">graphify update</span><i>→</i><span>Next triage</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="gloss">
+  <div class="wrap">
+    <div class="sec-head"><span><span class="id">//GLOSS</span>&nbsp;&nbsp;TERMS · ACRONYMS · SKILL NAMES</span><span class="plus">[ + ]</span></div>
+    <div class="sec-body">
+      <h2 class="h">Glossary</h2>
+      <p class="intro">Short labels used on this page and in the skills. Hover dotted underlines for a one-line expansion; full definitions below.</p>
+
+      <div class="gloss-groups">
+        <div class="gloss-group">
+          <div class="gloss-group__head">Process &amp; skills</div>
+          <div class="gloss-term">
+            <div class="gloss-term__k"><abbr title="You Aren't Gonna Need It">YAGNI</abbr></div>
+            <p class="gloss-term__exp"><strong>You Aren't Gonna Need It.</strong> Do not build features, abstractions, or "for later" scaffolding until a real task needs them today. First rung of the ponytail ladder: ask whether the change needs to exist at all.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k"><code>ponytail</code></div>
+            <p class="gloss-term__exp">Skill that enforces the <strong>smallest working diff</strong>: YAGNI → reuse existing code → stdlib → one line → minimum fix. Governs <em>what</em> to build, not whether you are allowed to stop.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k"><code>unlazy</code></div>
+            <p class="gloss-term__exp">Skill that governs <strong>when "done" is allowed</strong>. Before Act on substantial work, write observable gates; before claiming complete, run the CHECK and capture evidence. Confidence is not proof.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k">CHECK / EXPECT</div>
+            <p class="gloss-term__exp">A gate pair from <code>unlazy</code>. <strong>CHECK</strong> = a command in this repo that can fail (test script, linter, curl). <strong>EXPECT</strong> = a string that appears in the output only on success. Failed CHECK → Repair, same CHECK again.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k">Grill · <code>grill-with-docs</code></div>
+            <p class="gloss-term__exp">Step 1.5: before touching code, <strong>align fuzzy words</strong> with the project glossary (e.g. withdraw vs delete). Writes canonical terms to <code>glossary.md</code>, not into the repo's <code>CONTEXT.md</code>.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k">Compound · <code>compound-fix</code></div>
+            <p class="gloss-term__exp">Step 7: after a fix, <strong>file the reusable pattern</strong> into <code>gotchas.md</code> if the next person would hit the same trap. Patterns compound; ticket diffs do not.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k">Triage</div>
+            <p class="gloss-term__exp">Step 2: read the signal in the prompt and pick <strong>exactly one</strong> search path — grep a literal, graphify symbols, or read the project wiki. Not all three, not a repo tour.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k">Skills</div>
+            <p class="gloss-term__exp">Markdown playbooks in <code>~/.cursor/skills/</code> that tell the agent <strong>how</strong> to run a workflow — sequence, vocabulary, gates, filing rules.</p>
+          </div>
+        </div>
+
+        <div class="gloss-group">
+          <div class="gloss-group__head">Knowledge &amp; tools</div>
+          <div class="gloss-term">
+            <div class="gloss-term__k">Graphify</div>
+            <p class="gloss-term__exp">Local tool that builds a <strong>code knowledge graph</strong> per repo under <code>graphify-out/</code>: classes, methods, files, call paths. Query with code <strong>symbols</strong>, never ticket titles or symptom sentences.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k">Second Brain</div>
+            <p class="gloss-term__exp">One name for a vault that implements the LLM-wiki pattern. <strong>Not a downloadable app.</strong> Create any Obsidian vault and put <code>AGENTS.md</code> + <code>wiki/</code> in it.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k">Karpathy <abbr title="Large Language Model">LLM</abbr> wiki</div>
+            <p class="gloss-term__exp">Pattern by Andrej Karpathy: a folder of markdown notes where an <strong>LLM agent is the librarian</strong>. Source: <a class="out" href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f" target="_blank" rel="noopener">the gist</a>. You instantiate it; you do not install a product.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k">Obsidian</div>
+            <p class="gloss-term__exp">Markdown note app used as the <strong>IDE for the vault</strong>. You browse; the agent edits wiki pages, <code>index.md</code>, and <code>log.md</code>.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k"><abbr title="Model Context Protocol">MCP</abbr></div>
+            <p class="gloss-term__exp"><strong>Model Context Protocol</strong> — optional plugin servers for agent tools. This stack does not need any: files on disk plus the Graphify CLI are enough.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k"><abbr title="Retrieval Augmented Generation">RAG</abbr></div>
+            <p class="gloss-term__exp"><strong>Retrieval Augmented Generation</strong> — semantic/vector search over documents before the model answers. Skip it until index-first browsing stops scaling (roughly hundreds of pages).</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k"><abbr title="Architecture Decision Record">ADR</abbr></div>
+            <p class="gloss-term__exp"><strong>Architecture Decision Record</strong> — a short write-up of a hard-to-reverse choice, stored in <code>wiki/projects/&lt;name&gt;/decisions/</code>.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k"><code>[[wikilinks]]</code></div>
+            <p class="gloss-term__exp">Obsidian-style links between wiki pages. Each link is an edge — linked notes beat a flat folder tree for retrieval.</p>
+          </div>
+        </div>
+
+        <div class="gloss-group">
+          <div class="gloss-group__head">Technical shorthand</div>
+          <div class="gloss-term">
+            <div class="gloss-term__k">Symbol</div>
+            <p class="gloss-term__exp">A code name — class, method, function — used as a <strong>Graphify seed</strong>. Example: <code>AuthService</code>, <code>runPipeline()</code>. Not a Jira key or error message paraphrase.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k">Grep / Glob</div>
+            <p class="gloss-term__exp"><strong>Grep</strong> searches file contents for a literal string (from a stack trace, log line, config key). <strong>Glob</strong> finds files by name pattern. First triage path when the prompt names a concrete string.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k">Index-first</div>
+            <p class="gloss-term__exp">Read <code>index.md</code> (the catalog of every wiki page) before opening random notes. Cheap routing — only then load the few pages that matter.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k">Graph traversal</div>
+            <p class="gloss-term__exp">Follow edges instead of loading everything: wikilinks in the wiki, or call paths in Graphify. The opposite of dumping the whole repo or vault into context.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k">Diff</div>
+            <p class="gloss-term__exp">The set of line changes git shows between two versions. Review reads the <strong>full branch or worktree diff</strong>, not only the last commit.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k">Worktree</div>
+            <p class="gloss-term__exp">A git working directory tied to a branch — may include uncommitted changes. Review covers everything changed on the branch, staged or not.</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k"><abbr title="Representational State Transfer">REST</abbr></div>
+            <p class="gloss-term__exp">Plain HTTP APIs. Mentioned only as “you do not need a private API for this stack.”</p>
+          </div>
+          <div class="gloss-term">
+            <div class="gloss-term__k">Gotchas · Glossary · Subsystems</div>
+            <p class="gloss-term__exp">Per-project wiki pages: <strong>glossary</strong> = canonical terms; <strong>gotchas</strong> = reusable lessons from past fixes; <strong>subsystems</strong> = entry symbols for Graphify when you do not know where to start.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div class="modal" id="skill-modal" hidden>
+  <div class="modal__backdrop" data-close-modal></div>
+  <div class="modal__panel" role="dialog" aria-modal="true" aria-labelledby="skill-modal-title">
+    <div class="modal__head">
+      <div>
+        <div class="micro ember" id="skill-modal-path"></div>
+        <h3 id="skill-modal-title">Skill</h3>
+      </div>
+      <div class="modal__acts">
+        <button type="button" class="copy" id="skill-modal-copy" data-label="Copy">Copy</button>
+        <button type="button" class="copy" data-close-modal data-label="Close">Close</button>
+      </div>
+    </div>
+    <div class="modal__tabs" id="skill-modal-tabs"></div>
+    <pre class="modal__body" id="skill-modal-body"></pre>
+  </div>
+</div>
+<script type="application/json" id="kit-json">{"skills": [{"id": "task-loop", "n": "01", "name": "task-loop", "job": "Sequence", "blurb": "Intent → Grill → Triage → Act → Verify → Review → Compound. A chat prompt is a task. Jira is optional.", "files": [{"label": "SKILL.md", "dest": "~/.cursor/skills/task-loop/SKILL.md", "text": "---\nname: task-loop\ndescription: >\n  Project-agnostic Intent-Act-Verify loop for any repo and any prompted work —\n  not Jira-only. Use when starting a bug, feature, refactor, Jira ticket, or\n  when the user simply asks you to do something. Also: ticket-loop, /task-loop,\n  /ticket-loop. Skip factual Q&A with no implementation.\n---\n\n# Task loop\n\nSpine for work in **any** project. A chat prompt is a task. Jira is optional.\n\n**Vault:** `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\nOld name `ticket-loop` is an alias. Follow this file.\n\n## When to run / skip\n\nRun when the user wants something **done** in a workspace: implement, fix, refactor, add, wire, review-and-change.\n\nSkip: factual questions, “what is X”, read-only explanation with no change.\n\n## 0 Optional: branch\n\n| Signal | Action |\n|--------|--------|\n| Jira key/URL/summary **and** `jira-branch-workflow` skill exists | Run it before step 1 |\n| Else | Stay on current branch |\n\n## Resolve project context\n\n1. Repo path = workspace root or `git rev-parse --show-toplevel`.\n2. Project name = git root folder basename (example: my-app).\n3. Brain: `\u003cvault>/wiki/projects/\u003cname>/` — `overview.md`, `glossary.md`, `gotchas.md`, `subsystems.md` if they exist.\n4. Graph: `\u003crepo>/graphify-out/` if present — prefer `wiki/index.md`, then `graph.json`.\n\n```bash\nexport PATH=\"$HOME/.local/bin:$PATH\"\n```\n\nMissing wiki or graph: skip that layer. Do not invent another team's test stack for a Swift/JS/other repo.\n\n## 1 Intent\n\nCapture what done looks like (ticket fields, or the prompt itself). Observable success criteria **before** acting.\n\n**Non-trivial work:** write gates per `unlazy` before Act. Skip typo/rename/comment-only one-liners.\n\n## 1.5 Grill (domain language)\n\nInvoke `grill-with-docs` when vocabulary is fuzzy or the change is a new behavior / cross-subsystem design.\n\nSkip: literal file/line in a stack trace, obvious one-liner, glossary already covers every term in the success criteria.\n\n## 2 Triage\n\nPick ONE path:\n\n| Signal | Tool |\n|--------|------|\n| Literal in stack trace, log, config, env, path | Grep / Glob / Read |\n| Cross-service / unknown subsystem **and** graphify-out exists | Extract 1–3 class/method symbols, then `graphify explain` → `path` → `query` |\n| Domain rule / prior lesson | Brain `glossary.md` + `gotchas.md` + `subsystems.md` |\n\nNo graph → grep. Never seed graphify with symptom sentences or ticket keys.\n\n## 3 Act (ponytail)\n\nPonytail ladder. Smallest reversible diff. Root cause once in the shared function.\n\nProject conventions still win (DTOs, layering) when the **current** repo’s rules say so. Do not import another repo’s stack.\n\nCheap failing test first when the project has an obvious unit/service test target; else one line why, then Act. Prefer no new test over a bad test.\n\n## 4 Verify\n\n1. If `unlazy` gates exist, those CHECKs **are** verify.\n2. Else read `wiki/projects/\u003cname>/overview.md` **Verify** section.\n3. Else infer from **this** repo:\n\n| Hint | Where |\n|------|--------|\n| Repo has `skill-k8s-local-dev` | k3d pod — never host Pest/pytest |\n| `package.json` test script | that script |\n| Swift / Xcode | project test target or README |\n| Other | README / AGENTS.md |\n\nTrivial one-liners need no test. Still do step 6 if code changed.\n\n## 5 Repair\n\nFailure = new context. Narrow diff. Re-triage if the assumption was wrong. Re-run the same CHECK.\n\n**Stop when:** gates met, blocked, out of scope, or before destructive/unapproved ops.\n\n## 6 Review\n\nCode changed **and** `review-checklist` exists → run it on the **full branch/worktree diff**, not only the last commit.\n\nNo checklist skill → read the diff yourself before claiming done.\n\nSkip for non-code work (wiki-only, answers).\n\n## 7 Compound\n\nReusable insight **and** a project wiki exists → `compound-fix` → `wiki/projects/\u003cname>/gotchas.md`.\n\nThen `graphify update .` if this repo has a graph.\n\n## Layers (do not invert)\n\n| Owns | Skill |\n|------|--------|\n| Sequence | **this skill** |\n| What to build | `ponytail` |\n| When “done” is allowed | `unlazy` |\n| Jira branch mapping | `jira-branch-workflow` (opt-in) |\n| Where tests run | **this project’s** Verify / overlay rules |\n\n## Related\n\n- `unlazy` — gates for substantial work\n- `ticket-loop` — alias; do not fork a per-repo copy of this loop\n- `grill-with-docs`, `compound-fix`, `ponytail`, `second-brain`\n"}]}, {"id": "ponytail", "n": "02", "name": "ponytail", "job": "Smallest diff", "blurb": "YAGNI ladder. Skip the change if it need not exist. Shortest reversible diff that works.", "files": [{"label": "SKILL.md", "dest": "~/.cursor/skills/ponytail/SKILL.md", "text": "---\nname: ponytail\ndescription: >\n  Forces the laziest solution that actually works — simplest, shortest, most\n  minimal. Channels a senior dev who has seen everything: question whether the\n  task needs to exist at all (YAGNI), reach for the standard library before\n  custom code, native platform features before dependencies, one line before\n  fifty. Supports intensity levels: lite, full (default), ultra. Use whenever\n  the user says \"ponytail\", \"be lazy\", \"lazy mode\", \"simplest solution\",\n  \"minimal solution\", \"yagni\", \"do less\", or \"shortest path\", and whenever\n  they complain about over-engineering, bloat, boilerplate, or unnecessary\n  dependencies.\nargument-hint: \"[lite|full|ultra]\"\nlicense: MIT\n---\n\n# Ponytail\n\nYou are a lazy senior developer. Lazy means efficient, not careless. The best code is the code never written.\n\n## Persistence\n\nACTIVE EVERY RESPONSE. No drift back to over-building. Still active if unsure. Off only: \"stop ponytail\" / \"normal mode\". Default: **full**. Switch: `/ponytail lite|full|ultra`.\n\n## The ladder\n\nStop at the first rung that holds:\n\n1. **Does this need to exist at all?** Speculative need = skip it, say so in one line. (YAGNI)\n2. **Already in this codebase?** Reuse helper, util, type, or pattern already here.\n3. **Stdlib does it?** Use it.\n4. **Native platform feature covers it?** Use it.\n5. **Already-installed dependency solves it?** Use it. Never add a new one for what a few lines can do.\n6. **Can it be one line?** One line.\n7. **Only then:** the minimum code that works.\n\nThe ladder runs after you understand the problem: read the task and code it touches, trace the real flow end to end, then climb.\n\n**Bug fix = root cause, not symptom.** Grep every caller of the function you touch. One guard in the shared function beats a guard per caller.\n\n## Rules\n\n- No unrequested abstractions.\n- No boilerplate, no scaffolding \"for later\".\n- Deletion over addition. Boring over clever.\n- Fewest files possible. Shortest working diff wins — only once you understand the problem.\n- Mark deliberate simplifications with a `ponytail:` comment naming ceiling and upgrade path when relevant.\n\n## Output\n\nCode first. Then at most three short lines: what was skipped, when to add it. If the explanation is longer than the code, delete the explanation.\n\nPattern: `[code] → skipped: [X], add when [Y].`\n\n## Intensity\n\n| Level | What change |\n|-------|------------|\n| **lite** | Build what's asked, name the lazier alternative in one line. |\n| **full** | Ladder enforced. Default. |\n| **ultra** | YAGNI extremist. Deletion before addition. |\n\n## When NOT to be lazy\n\nNever simplify away: input validation at trust boundaries, error handling that prevents data loss, security, accessibility, anything explicitly requested. Project conventions (DTOs, test location, user-requested tests) override ponytail defaults. Never skip `unlazy` gates on substantial work — that is evidence, not extra code.\n\nNever lazy about understanding the problem. Read fully, trace flow, then be lazy.\n\n## Boundaries\n\nPonytail governs what you build and keeps chat terse. Vault writes (the LLM wiki) stay full prose — never compress wiki pages. \"stop ponytail\" / \"normal mode\": revert.\n"}]}, {"id": "unlazy", "n": "03", "name": "unlazy", "job": "Definition of done", "blurb": "Before Act on non-trivial work, write CHECK + EXPECT gates. Done requires evidence.", "files": [{"label": "SKILL.md", "dest": "~/.cursor/skills/unlazy/SKILL.md", "text": "---\nname: unlazy\ndescription: >\n  Completion discipline for substantial work in any repo: write observable\n  acceptance gates before Act, run a CHECK that can fail, report only what\n  evidence supports. Use on multi-file work, half-done returns, /unlazy,\n  \"gates\", \"tree N\", \"do not stop until it is done\". Skip trivial one-liners.\n  Adapted from Leonxlnx/unlazy for task-loop + ponytail.\n---\n\n# Unlazy\n\nMake incomplete work visible. Prove outcomes against gates. Do not claim done on confidence.\n\n**Source:** [Leonxlnx/unlazy](https://github.com/Leonxlnx/unlazy) — adapted. Upstream orchestration, `gate-check.mjs`, `.unlazy/` pipelines, and Claude Stop hook are **out**.\n\nWorks with `task-loop` in **any** project. CHECK is whatever proves the outcome **here**.\n\n## When\n\nAfter task-loop **1 Intent**, before **3 Act**, when **any** of:\n\n- Multi-file, cross-module, or several independently omittable outcomes\n- Work returned half-done or “should work”\n- User says `/unlazy`, `gates`, `tree N`, `do not stop until it is done`\n\nSkip: typo, rename, comment-only, formatting, factual reply, single obvious guard.\n\n## Coexistence (do not invert)\n\n| Owns | Skill |\n|------|--------|\n| Sequence | `task-loop` |\n| What to build | `ponytail` (YAGNI, smallest diff) |\n| Where tests run | **this repo** — wiki `## Verify`, overlay rules, or inferred stack |\n| When “done” is allowed | **this skill** |\n\nPonytail still forbids extra abstractions and polish loops. Unlazy forbids a done report while a required gate is unmet. Upstream four-pass “replace the cheap version” is **forbidden**.\n\nDo **not** assume kubectl, Pest, or a k3d pod unless **this** repo’s rules/wiki say so.\n\n## Write gates before Act\n\nOne observable outcome per independently omittable constraint. Session-local (TodoWrite or chat). **Do not** commit `GATES.md` or `.unlazy/`.\n\n```text\nG1: \u003cobservable outcome>\n  CHECK: \u003ccommand that proves it in THIS repo>\n  EXPECT: \u003csuccess-only token the command actually prints>\n  EVIDENCE: pending\n```\n\nRunnable gate = `CHECK:` + `EXPECT:`. Manual gate only when no command can decide (review-checklist, visual check).\n\nResolve CHECK in order:\n\n1. `wiki/projects/\u003cname>/overview.md` **Verify** section\n2. Current repo overlay (e.g. a k8s local-dev rule → exec in the `local` pod)\n3. Inferred stack (`package.json` test script, Xcode test, README)\n4. The smallest command **you** would run to know the gate failed\n\nAuthoring:\n\n- CHECK reads the artifact named by the outcome\n- EXPECT is a success-only marker the command prints after assertions pass — not a copied number as its own proof\n- Absence checks need a known positive control\n- Cheap failing test before the production change when the target is obvious; else one line why, then Act\n\n## Execute\n\n1. Implement the complete deliverable (ponytail). No placeholders for a required gate.\n2. Run each CHECK fresh. Read exit code and output. Record EVIDENCE from this run.\n3. Unmet → task-loop **5 Repair**. Re-run the same CHECK.\n4. Manual review gate if `review-checklist` exists and code changed.\n5. Blocked or out of scope → `ABANDON: \u003creason>`. Handoff, **not** success. Do not delete the gate.\n\n## Report\n\nRe-read the original request. Report met / unmet / abandoned with ids (`G1`, `G2`). No done report while a required gate is unmet, abandoned, deferred, or waiting on an owner.\n\n## Do not import from upstream\n\n- `node …/gate-check.mjs`, `~/.unlazy/approved`, `--approve`\n- `.unlazy/\u003cscope>/` PLAN + leaf ledgers + dispatch waves\n- Claude Code Stop hook / `install-hooks.mjs`\n- Depth Tree fan-out that multiplies effort per leaf\n- Copying another project’s test runner into this one\n"}]}, {"id": "grill-with-docs", "n": "04", "name": "grill-with-docs", "job": "Domain language", "blurb": "Fuzzy vocabulary goes into wiki/projects/my-app/glossary.md, not repo CONTEXT.md.", "files": [{"label": "SKILL.md", "dest": "~/.cursor/skills/grill-with-docs/SKILL.md", "text": "---\nname: grill-with-docs\ndescription: >\n  Grilling session that challenges a plan against the existing domain model,\n  sharpens terminology, and captures glossary terms and decisions in the LLM wiki\n  as they crystallise. Use at the start of task-loop when domain language\n  is fuzzy, when designing a feature, or when the user wants to stress-test a\n  plan against project vocabulary.\n---\n\n# Grill with docs (LLM wiki)\n\nInterview relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.\n\nAsk the questions **one at a time**, waiting for feedback on each question before continuing.\n\nIf a question can be answered by exploring the codebase or brain wiki, explore instead of asking.\n\n**Vault:** `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\n## Resolve project context\n\n1. Repo path = workspace root or `git rev-parse --show-toplevel`.\n2. Project name = git root folder basename (example: my-app).\n3. Brain dev-wiki: `\u003cvault>/wiki/projects/\u003cname>/` — read `glossary.md`, `gotchas.md`, `subsystems.md`, `overview.md` if they exist.\n4. Cross-project concepts: `\u003cvault>/wiki/concepts/` — read relevant pages linked from the project wiki.\n5. Code graph: `\u003crepo>/graphify-out/` when terminology must be verified against implementation.\n\nRead `\u003cvault>/AGENTS.md` before writing anything into the vault.\n\n## Where knowledge lives (not CONTEXT.md)\n\n| Content | Vault path |\n|---------|-------------------|\n| Project glossary (domain terms) | `wiki/projects/\u003cname>/glossary.md` |\n| Bounded-context map (multi-area repos) | `wiki/projects/\u003cname>/context-map.md` |\n| Hard-to-reverse decisions (ADRs) | `wiki/projects/\u003cname>/decisions/NNNN-slug.md` |\n| Cross-project domain concepts | `wiki/concepts/\u003cslug>.md` |\n| Reusable fix patterns (after work) | `wiki/projects/\u003cname>/gotchas.md` via `compound-fix` |\n\nCreate files lazily — only when you have something to write. Never store glossary or ADRs in the repo as `CONTEXT.md` or `docs/adr/`.\n\n## When to run\n\n| Run full grill | Skip or lightweight check |\n|----------------|---------------------------|\n| New feature or design change | Literal stack trace → known file |\n| Ambiguous or overloaded terms in the request | Typo / rename / formatting |\n| User asks to stress-test the plan | Ticket fully specifies behavior |\n| Domain rule unclear from the ticket or prompt alone | Glossary already covers all terms used |\n\nLightweight check: read `glossary.md` + relevant concept pages; only open a grilling question if a term conflicts or is missing.\n\n## During the session\n\n### Challenge against the glossary\n\nWhen the user uses a term that conflicts with `wiki/projects/\u003cname>/glossary.md` or a linked concept page, call it out immediately. \"Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?\"\n\n### Sharpen fuzzy language\n\nWhen the user uses vague or overloaded terms, propose a precise canonical term. \"You're saying 'account' — do you mean the Customer or the User? Those are different things.\"\n\n### Discuss concrete scenarios\n\nWhen domain relationships are being discussed, stress-test them with specific scenarios. Invent scenarios that probe edge cases and force precision about boundaries between concepts.\n\n### Cross-reference with code\n\nWhen the user states how something works, check whether the code agrees. If you find a contradiction, surface it: \"Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?\"\n\n### Update the brain inline\n\nWhen a term is resolved, update the vault **right there**. Do not batch.\n\n1. Append or edit the term in `wiki/projects/\u003cname>/glossary.md` using `references/glossary-format.md`.\n2. If the term spans projects or is a first-class domain idea, also create or update `wiki/concepts/\u003cslug>.md` with a wikilink back to the project glossary.\n3. Update `index.md` when creating a new page.\n4. Append `log.md`: `## [YYYY-MM-DD] grill | \u003cshort title>`.\n\nGlossary pages are **domain language only** — no implementation details, no file paths, no API shapes. Implementation belongs in code comments, gotchas, or graphify.\n\nFull prose only in vault files — never compressed/ponytail-style text in vault files.\n\n### Offer ADRs sparingly\n\nOnly offer to create a decision record when all three are true:\n\n1. **Hard to reverse** — meaningful cost to change later\n2. **Surprising without context** — a future reader will wonder why\n3. **Real trade-off** — genuine alternatives existed and one was chosen for specific reasons\n\nIf any is missing, skip. Use `references/adr-format.md`. Write to `wiki/projects/\u003cname>/decisions/`.\n\n### Multi-context repos\n\nIf the project has distinct bounded areas (e.g. ordering vs billing in one monorepo):\n\n- Maintain `wiki/projects/\u003cname>/context-map.md` listing contexts, brain paths, and relationships.\n- Each context can have its own section in `glossary.md` or a dedicated concept page when large.\n\nInfer which context the current topic relates to. If unclear, ask.\n\n## Exit criteria\n\nStop grilling when:\n\n- All terms used in the success criteria are defined or confirmed against the glossary\n- Open design branches are resolved or explicitly deferred with a logged decision\n- No contradictions remain between user intent, glossary, and code (or contradictions are acknowledged)\n\nThen hand off to `task-loop` triage (step 2) with a one-line summary of resolved vocabulary.\n\n## Related skills\n\n- `task-loop` — parent workflow; grill is step 1.5 before triage (`ticket-loop` is an alias)\n- `second-brain` — vault schema and ingest/query rules\n- `compound-fix` — post-fix patterns (not glossary terms)\n"}, {"label": "glossary-format.md", "dest": "~/.cursor/skills/grill-with-docs/references/glossary-format.md", "text": "# Glossary format (Second Brain)\n\nTarget: `wiki/projects/\u003cname>/glossary.md`\n\nAdapted from mattpocock/grill-with-docs CONTEXT format — stored in the vault, not in the repo.\n\n## Page frontmatter\n\n```markdown\n---\ntype: synthesis\ntags: [\u003cname>, glossary]\ncreated: YYYY-MM-DD\nupdated: YYYY-MM-DD\n---\n\n# \u003cname> glossary\n\n**Summary**: Canonical domain language for \u003cproject>. Implementation-free — terms only.\n\n## Language\n\n**Order**:\nA one or two sentence description of the term.\n_Avoid_: Purchase, transaction\n\n**Invoice**:\nA request for payment sent to a customer after delivery.\n_Avoid_: Bill, payment request\n\n## Related\n\n- [[\u003cname>/overview]]\n- [[\u003cname>/subsystems]]\n- [[relevant-concept]]\n```\n\n## Rules\n\n- **Be opinionated.** Pick one canonical term; list alternatives under `_Avoid_`.\n- **Keep definitions tight.** One or two sentences. Define what it IS, not what it does.\n- **Project-specific only.** General programming concepts (timeouts, DTOs, retries) do not belong unless the project gives them a special meaning.\n- **Group under subheadings** when natural clusters emerge (e.g. `## Publishing`, `## Finance`).\n- **No implementation.** No file paths, class names, or API fields — those live in gotchas, subsystems, or graphify.\n- **Wikilink** related concept pages and `[[\u003cname>/gotchas]]` where a term has known pitfalls.\n\n## Context map (optional)\n\nFor repos with multiple bounded contexts, add `wiki/projects/\u003cname>/context-map.md`:\n\n```markdown\n# \u003cname> context map\n\n## Contexts\n\n- [[catalog]] — product records and metadata\n- Billing — invoicing and transactions (see [[my-app/glossary#Billing]])\n\n## Relationships\n\n- Catalog → file_service: presigned URLs for uploads\n- billing_service → catalog_service: channel eligibility\n```\n\n## Single vs multi-context\n\n- **Single context:** one `glossary.md` per project wiki.\n- **Multiple contexts:** `context-map.md` + glossary sections or dedicated `wiki/concepts/` pages per large context.\n"}, {"label": "adr-format.md", "dest": "~/.cursor/skills/grill-with-docs/references/adr-format.md", "text": "# Decision record format (Second Brain)\n\nTarget: `wiki/projects/\u003cname>/decisions/NNNN-slug.md`\n\nADRs live in the brain, not in `docs/adr/` inside the repo.\n\n## Frontmatter\n\n```markdown\n---\ntype: synthesis\ntags: [\u003cname>, decision]\nstatus: proposed | accepted | deprecated | superseded\ncreated: YYYY-MM-DD\nupdated: YYYY-MM-DD\nsupersedes: \"\"\nsuperseded_by: \"\"\n---\n\n# Short title of the decision\n\nOne to three sentences: context, what was decided, and why.\n```\n\nThat is enough for most records. Optional sections only when they add value:\n\n- **Considered options** — when rejected alternatives are worth remembering\n- **Consequences** — non-obvious downstream effects\n\n## Numbering\n\nScan `wiki/projects/\u003cname>/decisions/` for the highest `NNNN` prefix and increment by one.\n\n## After writing\n\n1. Update `index.md` (Decisions section for the project).\n2. Append `log.md`: `## [YYYY-MM-DD] decision | \u003ctitle>`.\n3. Wikilink from `glossary.md` or `overview.md` if the decision defines a term or boundary.\n\n## When to offer\n\nAll three must be true:\n\n1. Hard to reverse\n2. Surprising without context\n3. Result of a real trade-off\n\nSkip easy-to-reverse, obvious, or no-alternative choices.\n"}]}, {"id": "compound-fix", "n": "05", "name": "compound-fix", "job": "File a lesson", "blurb": "Reusable patterns into gotchas.md. Never dump every ticket or paste the diff.", "files": [{"label": "SKILL.md", "dest": "~/.cursor/skills/compound-fix/SKILL.md", "text": "---\nname: compound-fix\ndescription: >\n  After a bug fix or feature on a codebase, file reusable patterns into the LLM wiki — not every ticket. Use when the user says \"worth filing\", \"compound this\n  fix\", \"remember this gotcha\", \"add to gotchas\", \"ticket done — file it\", or at\n  the end of dev/Jira work when something non-obvious was learned on any project.\n---\n\n# Compound fix (dev → wiki)\n\nFile **what you learned**, not what you changed. Skip routine fixes.\n\n**Vault:** `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\n## When to compound\n\n| Compound | Skip |\n|----------|------|\n| Domain rule the ticket or prompt did not explain | Typo / rename |\n| Recurring subsystem bug | Obvious one-liner |\n| Dead-end approach (A failed, B worked) | Env-only issue |\n| Non-obvious domain or partner edge case | Fully in code comments |\n\n## Where to write\n\nResolve project name = git root folder basename (example: my-app).\n\n| Content | Path |\n|---------|------|\n| Project gotcha (default) | `wiki/projects/\u003cname>/gotchas.md` |\n| Canonical domain term (grill) | `wiki/projects/\u003cname>/glossary.md` |\n| Domain concept | `wiki/concepts/\u003cslug>.md` |\n| Cross-project pattern | `wiki/concepts/\u003cslug>.md` |\n\nAlso update `index.md` if you create a new page. Append `log.md`: `## [YYYY-MM-DD] compound | \u003cshort title>`.\n\n## Entry format (gotchas)\n\n```markdown\n### Short title\n- **What**: one sentence\n- **Why it matters**: when you'll hit it again\n- **Where**: file/symbol or subsystem\n- **Refs**: TICKET-KEY (optional)\n```\n\nFull prose only — never compressed text in vault files.\n\n## Procedure\n\n1. Confirm with the user (or infer from \"worth filing\") that the insight is reusable.\n2. Draft the entry; do not paste diffs or line-by-line change logs.\n3. Append to `wiki/projects/\u003cname>/gotchas.md` or update the right concept page; wikilink related pages.\n4. Update `index.md` + `log.md` if needed.\n\n## Routing\n\n- Code exploration → graphify (repo), not this skill.\n- Full article/paper ingest → `second-brain` ingest workflow.\n- This skill → **short dev lessons** from tickets.\n\nSee `second-brain/references/compound.md` for detail.\n"}]}, {"id": "second-brain", "n": "06", "name": "second-brain", "job": "Operate the vault", "blurb": "Router for ingest, query, lint. Read index.md first. Vault writes stay full prose.", "files": [{"label": "SKILL.md", "dest": "~/.cursor/skills/second-brain/SKILL.md", "text": "---\nname: second-brain\ndescription: >\n  Personal knowledge base (Karpathy LLM-wiki) living in the Obsidian vault at\n  \"\u003cpath-to-your-vault>\". Use whenever the user wants to\n  recall, save, or build up knowledge: \"what do I know about X\", \"add this to my\n  brain/second brain/vault\", \"remember this\", \"ingest this article/paper/note\",\n  \"save this\", \"what have I read about\", \"summarize my notes on\", \"file this\",\n  \"triage my inbox\", or any research/personal-knowledge question that is NOT about\n  a specific codebase. For code/architecture questions use graphify instead.\n---\n\n# Second Brain (LLM Wiki)\n\nAn incrementally built, interlinked markdown knowledge base. The user curates sources and asks questions; the agent does all bookkeeping (summarize, cross-reference, file, keep consistent). Obsidian is the IDE, the agent is the programmer, the wiki is the codebase.\n\n**Vault root:** `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\nThe vault's own `AGENTS.md` is the authoritative schema. Read `\u003cvault>/AGENTS.md` before operating, then follow it. This skill is the global router + quick reference.\n\n## When to use\n\n- Recall: \"what do I know about...\", \"what have I read on...\", \"summarize my notes on...\"\n- Capture: \"remember this\", \"add to my brain\", \"save this\", \"ingest this article\"\n- Maintain: \"triage my inbox\", \"lint my wiki\", \"is anything contradictory\"\n- Session handoff: \"/handoff\", \"save context for later\" -> `conversation-handoff` skill\n- After a fix: \"worth filing?\", \"compound this gotcha\", \"add to gotchas\"\n- Before dev work: stress-test domain language -> `grill-with-docs` skill (glossary + decisions in project wiki)\n- Research/personal questions that are not about a specific codebase\n\n## Routing\n\n- Knowledge / research / personal -> this wiki (the vault).\n- Code / architecture / \"how does this repo work\" -> triage first: literal in log/config -> grep; structural/cross-service -> graphify (`explain` / `path` / symbol-seeded `query` on the project graph, or read `\u003cvault>/projects/\u003cname>/`); domain rule -> `wiki/projects/\u003cname>/glossary.md` + `gotchas.md` + `subsystems.md`.\n- Dev work on any repo (prompt or Jira) -> `task-loop` skill (`ticket-loop` alias; grill uses `grill-with-docs`; reads `wiki/projects/\u003cname>/` + repo `graphify-out/`).\n- If unsure, check `\u003cvault>/index.md` first - it is cheap and tells you what the brain contains.\n\n## Three layers (see vault AGENTS.md for detail)\n\n1. `raw/` - immutable sources (never edit). Images in `raw/assets/`.\n2. `wiki/` - agent-owned pages: `sources/`, `entities/`, `concepts/`, `overview.md`.\n3. `index.md` (catalog, read first) + `log.md` (append-only, `## [YYYY-MM-DD] type | Title`).\n\n## Operations (quick reference)\n\n- **Ingest** a source -> `references/ingest.md`\n- **Query** the wiki -> `references/query.md`\n- **Compound** a dev fix -> `references/compound.md` (or `compound-fix` skill)\n- **Grill** domain language before coding -> `grill-with-docs` skill (`wiki/projects/\u003cname>/glossary.md`, `decisions/`)\n- **Handoff** a Cursor session -> `references/handoff.md` (or `conversation-handoff` skill)\n- **Lint** the wiki -> `references/lint.md`\n\nAlways read `index.md` first on a query. Always update `index.md` + append `log.md` on an ingest. File good query answers back as new pages so explorations compound.\n\n## Hard rules\n\n- NEVER fabricate. Missing fact -> say so or leave a `_` placeholder.\n- NEVER edit `raw/` or hand-edit `projects/`.\n- Cite the source (path under `raw/` or URL) for every non-obvious claim.\n- Use `[[wikilinks]]` and YAML frontmatter on every wiki page.\n- **Ponytail terse chat is for answers only.** Everything written INTO the vault (wiki pages, `index.md`, `log.md`) must be full, human-readable prose. Never write compressed text into the vault.\n\n## Scale note\n\nPure-context (read index.md -> pages) is correct and reliable below ~100k tokens / a few hundred pages. Do not add RAG/vector search before then. If the brain outgrows index-first browsing, add a markdown search tool (e.g. qmd) - not a vector DB.\n"}, {"label": "ingest.md", "dest": "~/.cursor/skills/second-brain/references/ingest.md", "text": "# Ingest a source\n\nGoal: integrate a new source into the wiki so knowledge compounds - not just file it.\n\nVault root: `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\n## Steps\n\n1. **Locate the source.** It should be in `raw/`. If the user gave a URL, fetch it to markdown into `raw/` first (Obsidian Web Clipper, or `graphify add \u003curl>` which writes to `./raw`, or fetch + write). Download referenced images to `raw/assets/` when useful. Never edit a source after it lands in `raw/`.\n\n2. **Read it fully.** For sources with important images, read the text first, then view the images separately (LLMs can't read inline-image markdown in one pass).\n\n3. **Discuss takeaways** with the user (skip in batch mode). Confirm what to emphasize.\n\n4. **Write a source summary page** in `wiki/sources/\u003cslug>.md` with frontmatter (`type: source`, tags, created/updated, `sources: [\"raw/\u003cfile>\"]`), a one-line `**Summary**`, key points, and `## Related` wikilinks.\n\n5. **Integrate across the wiki.** Create or update relevant `wiki/entities/` and `wiki/concepts/` pages. Integrate the new information into existing pages - revise summaries, add cross-references, and FLAG where the new source contradicts an existing claim (note both and the sources). A single source typically touches 10-15 pages.\n\n6. **Update `index.md`** - add the new pages under the right category with one-line summaries.\n\n7. **Update `wiki/overview.md`** if the source shifts the top-level synthesis.\n\n8. **Append `log.md`**: `## [YYYY-MM-DD] ingest | \u003cTitle>`.\n\n## Rules\n\n- Cite `raw/\u003cfile>` (or URL) for every claim taken from the source.\n- Full prose only - never compressed text in vault files.\n- Prefer many focused pages over one catch-all page.\n- Use consistent terminology; add an alias line when a concept has multiple names.\n"}, {"label": "query.md", "dest": "~/.cursor/skills/second-brain/references/query.md", "text": "# Query the wiki\n\nVault root: `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\n## Steps\n\n1. **Read `index.md` first.** It is the catalog - use it to find the 1-3 candidate pages relevant to the question instead of scanning the whole vault.\n\n2. **Read those pages.** Follow `[[wikilinks]]` to neighbors when the answer spans multiple pages. At small scale, reading the whole relevant cluster is fine and more reliable than guessing.\n\n3. **Answer with citations.** Cite the wiki pages and underlying `raw/` sources used. If the wiki lacks the answer, say so plainly - do not fabricate. Offer to ingest a source that would fill the gap.\n\n4. **File good answers back.** If the answer is reusable (a comparison, a synthesis, a discovered connection), write it as a new `wiki/concepts/` or `wiki/sources/` page, update `index.md`, and append `log.md` (`## [YYYY-MM-DD] query | \u003ctopic>`). Explorations should compound into the brain, not vanish into chat.\n\n## Output\n\n- Chat answers MAY use ponytail terse style; vault writes stay full prose.\n- Anything written back into the vault MUST be full prose.\n\n## Routing reminder\n\nIf the question is actually about a codebase, use graphify (`graphify query` on the project graph) or the mirrored `projects/\u003cname>/` wiki rather than hand-searching the brain.\n"}, {"label": "compound.md", "dest": "~/.cursor/skills/second-brain/references/compound.md", "text": "# Compound a dev fix into the wiki\n\nUse after ticket or prompt work when something **reusable** was learned.\n\nVault root: `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\n## Steps\n\n1. **Decide** — reusable pattern, gotcha, or domain rule? If routine, stop.\n2. **Choose target** — default `wiki/projects/\u003cname>/gotchas.md` (replace `\u003cname>` with my-app or your repo folder name); domain topics → `wiki/concepts/`.\n3. **Write** using the gotcha format in the `compound-fix` skill (What / Why / Where / Refs).\n4. **Link** — add `[[wikilinks]]` to related concept pages.\n5. **Catalog** — update `index.md` if new page; append `log.md` with `## [DATE] compound | Title`.\n\n## Rules\n\n- Never file \"changed line 87\" — file the **rule** that line enforced.\n- Never edit `raw/` or `projects/` mirrors.\n- Full prose in vault; ponytail terse style OK in chat only.\n"}, {"label": "lint.md", "dest": "~/.cursor/skills/second-brain/references/lint.md", "text": "# Lint the wiki\n\nPeriodic health-check. Vault root: `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\n## Checks\n\n1. **Contradictions** - pages making conflicting claims about the same entity/fact. Report both, with sources. Do NOT auto-resolve a decision reversal; surface it for the user.\n2. **Stale claims** - statements superseded by a newer source. Supersede (note what replaced what + when), do not silently delete.\n3. **Orphans** - pages with no inbound `[[wikilinks]]`. Suggest where to link them.\n4. **Missing pages** - concepts/entities mentioned across pages but lacking their own page.\n5. **Missing cross-references** - related pages that should link to each other.\n6. **Index drift** - pages not listed in `index.md`, or index entries pointing at moved/deleted pages.\n7. **Gaps** - important questions the corpus raises but doesn't answer; suggest sources to ingest.\n\n## Output\n\nProduce a report grouped by check, each item with the page path and a suggested fix. Apply fixes only after the user approves (or in an explicitly authorized batch). Append a `## [YYYY-MM-DD] lint | \u003csummary>` line to `log.md`.\n\n## Rules\n\n- Prefer stable identity (the source citation) over textual proximity when detecting duplicates/contradictions.\n- Never fabricate to \"fill\" a gap - flag it instead.\n- Full prose only in any page you touch.\n"}, {"label": "handoff.md", "dest": "~/.cursor/skills/second-brain/references/handoff.md", "text": "# Session handoff into the vault\n\nVault root: `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\nUse the `conversation-handoff` skill for `/handoff` in Cursor. Do not write to `/tmp`.\n\n## Location\n\n`wiki/handoffs/YYYY-MM-DD-\u003cslug>.md`\n\n## After writing\n\n1. Append `log.md`: `## [YYYY-MM-DD] handoff | Title`\n2. Add entry under **Handoffs** in `index.md`\n3. Wikilink related project/concept pages when applicable\n\n## vs other persistence\n\n| Mechanism | Where | When |\n|-----------|-------|------|\n| conversation-handoff | `wiki/handoffs/` | Cursor session switch, context limit |\n| compound-fix | `wiki/projects/\u003cname>/gotchas.md` | Reusable dev lesson from a ticket |\n| ingest | `raw/` + `wiki/sources/` | Articles, docs, external sources |\n\nHandoffs are **session snapshots** — stale over time. Receiving agent should verify live git/kanban state.\n"}]}], "installPrompt": "Write Cursor skills as separate folders under ~/.cursor/skills/. Each file below is the exact markdown to save.\n\nReplace \u003cpath-to-your-vault> with the absolute path to your Obsidian vault. Quote that path in the skill text if it contains spaces.\nLeave \u003cname> placeholders as-is — the agent resolves them from the repo folder name (example: my-app).\nDo not merge these into one SKILL.md. Do not add a database, embeddings, or an MCP server.\n\n=== ~/.cursor/skills/task-loop/SKILL.md ===\n\n---\nname: task-loop\ndescription: >\n  Project-agnostic Intent-Act-Verify loop for any repo and any prompted work —\n  not Jira-only. Use when starting a bug, feature, refactor, Jira ticket, or\n  when the user simply asks you to do something. Also: ticket-loop, /task-loop,\n  /ticket-loop. Skip factual Q&A with no implementation.\n---\n\n# Task loop\n\nSpine for work in **any** project. A chat prompt is a task. Jira is optional.\n\n**Vault:** `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\nOld name `ticket-loop` is an alias. Follow this file.\n\n## When to run / skip\n\nRun when the user wants something **done** in a workspace: implement, fix, refactor, add, wire, review-and-change.\n\nSkip: factual questions, “what is X”, read-only explanation with no change.\n\n## 0 Optional: branch\n\n| Signal | Action |\n|--------|--------|\n| Jira key/URL/summary **and** `jira-branch-workflow` skill exists | Run it before step 1 |\n| Else | Stay on current branch |\n\n## Resolve project context\n\n1. Repo path = workspace root or `git rev-parse --show-toplevel`.\n2. Project name = git root folder basename (example: my-app).\n3. Brain: `\u003cvault>/wiki/projects/\u003cname>/` — `overview.md`, `glossary.md`, `gotchas.md`, `subsystems.md` if they exist.\n4. Graph: `\u003crepo>/graphify-out/` if present — prefer `wiki/index.md`, then `graph.json`.\n\n```bash\nexport PATH=\"$HOME/.local/bin:$PATH\"\n```\n\nMissing wiki or graph: skip that layer. Do not invent another team's test stack for a Swift/JS/other repo.\n\n## 1 Intent\n\nCapture what done looks like (ticket fields, or the prompt itself). Observable success criteria **before** acting.\n\n**Non-trivial work:** write gates per `unlazy` before Act. Skip typo/rename/comment-only one-liners.\n\n## 1.5 Grill (domain language)\n\nInvoke `grill-with-docs` when vocabulary is fuzzy or the change is a new behavior / cross-subsystem design.\n\nSkip: literal file/line in a stack trace, obvious one-liner, glossary already covers every term in the success criteria.\n\n## 2 Triage\n\nPick ONE path:\n\n| Signal | Tool |\n|--------|------|\n| Literal in stack trace, log, config, env, path | Grep / Glob / Read |\n| Cross-service / unknown subsystem **and** graphify-out exists | Extract 1–3 class/method symbols, then `graphify explain` → `path` → `query` |\n| Domain rule / prior lesson | Brain `glossary.md` + `gotchas.md` + `subsystems.md` |\n\nNo graph → grep. Never seed graphify with symptom sentences or ticket keys.\n\n## 3 Act (ponytail)\n\nPonytail ladder. Smallest reversible diff. Root cause once in the shared function.\n\nProject conventions still win (DTOs, layering) when the **current** repo’s rules say so. Do not import another repo’s stack.\n\nCheap failing test first when the project has an obvious unit/service test target; else one line why, then Act. Prefer no new test over a bad test.\n\n## 4 Verify\n\n1. If `unlazy` gates exist, those CHECKs **are** verify.\n2. Else read `wiki/projects/\u003cname>/overview.md` **Verify** section.\n3. Else infer from **this** repo:\n\n| Hint | Where |\n|------|--------|\n| Repo has `skill-k8s-local-dev` | k3d pod — never host Pest/pytest |\n| `package.json` test script | that script |\n| Swift / Xcode | project test target or README |\n| Other | README / AGENTS.md |\n\nTrivial one-liners need no test. Still do step 6 if code changed.\n\n## 5 Repair\n\nFailure = new context. Narrow diff. Re-triage if the assumption was wrong. Re-run the same CHECK.\n\n**Stop when:** gates met, blocked, out of scope, or before destructive/unapproved ops.\n\n## 6 Review\n\nCode changed **and** `review-checklist` exists → run it on the **full branch/worktree diff**, not only the last commit.\n\nNo checklist skill → read the diff yourself before claiming done.\n\nSkip for non-code work (wiki-only, answers).\n\n## 7 Compound\n\nReusable insight **and** a project wiki exists → `compound-fix` → `wiki/projects/\u003cname>/gotchas.md`.\n\nThen `graphify update .` if this repo has a graph.\n\n## Layers (do not invert)\n\n| Owns | Skill |\n|------|--------|\n| Sequence | **this skill** |\n| What to build | `ponytail` |\n| When “done” is allowed | `unlazy` |\n| Jira branch mapping | `jira-branch-workflow` (opt-in) |\n| Where tests run | **this project’s** Verify / overlay rules |\n\n## Related\n\n- `unlazy` — gates for substantial work\n- `ticket-loop` — alias; do not fork a per-repo copy of this loop\n- `grill-with-docs`, `compound-fix`, `ponytail`, `second-brain`\n\n=== ~/.cursor/skills/ponytail/SKILL.md ===\n\n---\nname: ponytail\ndescription: >\n  Forces the laziest solution that actually works — simplest, shortest, most\n  minimal. Channels a senior dev who has seen everything: question whether the\n  task needs to exist at all (YAGNI), reach for the standard library before\n  custom code, native platform features before dependencies, one line before\n  fifty. Supports intensity levels: lite, full (default), ultra. Use whenever\n  the user says \"ponytail\", \"be lazy\", \"lazy mode\", \"simplest solution\",\n  \"minimal solution\", \"yagni\", \"do less\", or \"shortest path\", and whenever\n  they complain about over-engineering, bloat, boilerplate, or unnecessary\n  dependencies.\nargument-hint: \"[lite|full|ultra]\"\nlicense: MIT\n---\n\n# Ponytail\n\nYou are a lazy senior developer. Lazy means efficient, not careless. The best code is the code never written.\n\n## Persistence\n\nACTIVE EVERY RESPONSE. No drift back to over-building. Still active if unsure. Off only: \"stop ponytail\" / \"normal mode\". Default: **full**. Switch: `/ponytail lite|full|ultra`.\n\n## The ladder\n\nStop at the first rung that holds:\n\n1. **Does this need to exist at all?** Speculative need = skip it, say so in one line. (YAGNI)\n2. **Already in this codebase?** Reuse helper, util, type, or pattern already here.\n3. **Stdlib does it?** Use it.\n4. **Native platform feature covers it?** Use it.\n5. **Already-installed dependency solves it?** Use it. Never add a new one for what a few lines can do.\n6. **Can it be one line?** One line.\n7. **Only then:** the minimum code that works.\n\nThe ladder runs after you understand the problem: read the task and code it touches, trace the real flow end to end, then climb.\n\n**Bug fix = root cause, not symptom.** Grep every caller of the function you touch. One guard in the shared function beats a guard per caller.\n\n## Rules\n\n- No unrequested abstractions.\n- No boilerplate, no scaffolding \"for later\".\n- Deletion over addition. Boring over clever.\n- Fewest files possible. Shortest working diff wins — only once you understand the problem.\n- Mark deliberate simplifications with a `ponytail:` comment naming ceiling and upgrade path when relevant.\n\n## Output\n\nCode first. Then at most three short lines: what was skipped, when to add it. If the explanation is longer than the code, delete the explanation.\n\nPattern: `[code] → skipped: [X], add when [Y].`\n\n## Intensity\n\n| Level | What change |\n|-------|------------|\n| **lite** | Build what's asked, name the lazier alternative in one line. |\n| **full** | Ladder enforced. Default. |\n| **ultra** | YAGNI extremist. Deletion before addition. |\n\n## When NOT to be lazy\n\nNever simplify away: input validation at trust boundaries, error handling that prevents data loss, security, accessibility, anything explicitly requested. Project conventions (DTOs, test location, user-requested tests) override ponytail defaults. Never skip `unlazy` gates on substantial work — that is evidence, not extra code.\n\nNever lazy about understanding the problem. Read fully, trace flow, then be lazy.\n\n## Boundaries\n\nPonytail governs what you build and keeps chat terse. Vault writes (the LLM wiki) stay full prose — never compress wiki pages. \"stop ponytail\" / \"normal mode\": revert.\n\n=== ~/.cursor/skills/unlazy/SKILL.md ===\n\n---\nname: unlazy\ndescription: >\n  Completion discipline for substantial work in any repo: write observable\n  acceptance gates before Act, run a CHECK that can fail, report only what\n  evidence supports. Use on multi-file work, half-done returns, /unlazy,\n  \"gates\", \"tree N\", \"do not stop until it is done\". Skip trivial one-liners.\n  Adapted from Leonxlnx/unlazy for task-loop + ponytail.\n---\n\n# Unlazy\n\nMake incomplete work visible. Prove outcomes against gates. Do not claim done on confidence.\n\n**Source:** [Leonxlnx/unlazy](https://github.com/Leonxlnx/unlazy) — adapted. Upstream orchestration, `gate-check.mjs`, `.unlazy/` pipelines, and Claude Stop hook are **out**.\n\nWorks with `task-loop` in **any** project. CHECK is whatever proves the outcome **here**.\n\n## When\n\nAfter task-loop **1 Intent**, before **3 Act**, when **any** of:\n\n- Multi-file, cross-module, or several independently omittable outcomes\n- Work returned half-done or “should work”\n- User says `/unlazy`, `gates`, `tree N`, `do not stop until it is done`\n\nSkip: typo, rename, comment-only, formatting, factual reply, single obvious guard.\n\n## Coexistence (do not invert)\n\n| Owns | Skill |\n|------|--------|\n| Sequence | `task-loop` |\n| What to build | `ponytail` (YAGNI, smallest diff) |\n| Where tests run | **this repo** — wiki `## Verify`, overlay rules, or inferred stack |\n| When “done” is allowed | **this skill** |\n\nPonytail still forbids extra abstractions and polish loops. Unlazy forbids a done report while a required gate is unmet. Upstream four-pass “replace the cheap version” is **forbidden**.\n\nDo **not** assume kubectl, Pest, or a k3d pod unless **this** repo’s rules/wiki say so.\n\n## Write gates before Act\n\nOne observable outcome per independently omittable constraint. Session-local (TodoWrite or chat). **Do not** commit `GATES.md` or `.unlazy/`.\n\n```text\nG1: \u003cobservable outcome>\n  CHECK: \u003ccommand that proves it in THIS repo>\n  EXPECT: \u003csuccess-only token the command actually prints>\n  EVIDENCE: pending\n```\n\nRunnable gate = `CHECK:` + `EXPECT:`. Manual gate only when no command can decide (review-checklist, visual check).\n\nResolve CHECK in order:\n\n1. `wiki/projects/\u003cname>/overview.md` **Verify** section\n2. Current repo overlay (e.g. a k8s local-dev rule → exec in the `local` pod)\n3. Inferred stack (`package.json` test script, Xcode test, README)\n4. The smallest command **you** would run to know the gate failed\n\nAuthoring:\n\n- CHECK reads the artifact named by the outcome\n- EXPECT is a success-only marker the command prints after assertions pass — not a copied number as its own proof\n- Absence checks need a known positive control\n- Cheap failing test before the production change when the target is obvious; else one line why, then Act\n\n## Execute\n\n1. Implement the complete deliverable (ponytail). No placeholders for a required gate.\n2. Run each CHECK fresh. Read exit code and output. Record EVIDENCE from this run.\n3. Unmet → task-loop **5 Repair**. Re-run the same CHECK.\n4. Manual review gate if `review-checklist` exists and code changed.\n5. Blocked or out of scope → `ABANDON: \u003creason>`. Handoff, **not** success. Do not delete the gate.\n\n## Report\n\nRe-read the original request. Report met / unmet / abandoned with ids (`G1`, `G2`). No done report while a required gate is unmet, abandoned, deferred, or waiting on an owner.\n\n## Do not import from upstream\n\n- `node …/gate-check.mjs`, `~/.unlazy/approved`, `--approve`\n- `.unlazy/\u003cscope>/` PLAN + leaf ledgers + dispatch waves\n- Claude Code Stop hook / `install-hooks.mjs`\n- Depth Tree fan-out that multiplies effort per leaf\n- Copying another project’s test runner into this one\n\n=== ~/.cursor/skills/grill-with-docs/SKILL.md ===\n\n---\nname: grill-with-docs\ndescription: >\n  Grilling session that challenges a plan against the existing domain model,\n  sharpens terminology, and captures glossary terms and decisions in the LLM wiki\n  as they crystallise. Use at the start of task-loop when domain language\n  is fuzzy, when designing a feature, or when the user wants to stress-test a\n  plan against project vocabulary.\n---\n\n# Grill with docs (LLM wiki)\n\nInterview relentlessly about every aspect of this plan until we reach a shared understanding. Walk down each branch of the design tree, resolving dependencies between decisions one-by-one. For each question, provide your recommended answer.\n\nAsk the questions **one at a time**, waiting for feedback on each question before continuing.\n\nIf a question can be answered by exploring the codebase or brain wiki, explore instead of asking.\n\n**Vault:** `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\n## Resolve project context\n\n1. Repo path = workspace root or `git rev-parse --show-toplevel`.\n2. Project name = git root folder basename (example: my-app).\n3. Brain dev-wiki: `\u003cvault>/wiki/projects/\u003cname>/` — read `glossary.md`, `gotchas.md`, `subsystems.md`, `overview.md` if they exist.\n4. Cross-project concepts: `\u003cvault>/wiki/concepts/` — read relevant pages linked from the project wiki.\n5. Code graph: `\u003crepo>/graphify-out/` when terminology must be verified against implementation.\n\nRead `\u003cvault>/AGENTS.md` before writing anything into the vault.\n\n## Where knowledge lives (not CONTEXT.md)\n\n| Content | Vault path |\n|---------|-------------------|\n| Project glossary (domain terms) | `wiki/projects/\u003cname>/glossary.md` |\n| Bounded-context map (multi-area repos) | `wiki/projects/\u003cname>/context-map.md` |\n| Hard-to-reverse decisions (ADRs) | `wiki/projects/\u003cname>/decisions/NNNN-slug.md` |\n| Cross-project domain concepts | `wiki/concepts/\u003cslug>.md` |\n| Reusable fix patterns (after work) | `wiki/projects/\u003cname>/gotchas.md` via `compound-fix` |\n\nCreate files lazily — only when you have something to write. Never store glossary or ADRs in the repo as `CONTEXT.md` or `docs/adr/`.\n\n## When to run\n\n| Run full grill | Skip or lightweight check |\n|----------------|---------------------------|\n| New feature or design change | Literal stack trace → known file |\n| Ambiguous or overloaded terms in the request | Typo / rename / formatting |\n| User asks to stress-test the plan | Ticket fully specifies behavior |\n| Domain rule unclear from the ticket or prompt alone | Glossary already covers all terms used |\n\nLightweight check: read `glossary.md` + relevant concept pages; only open a grilling question if a term conflicts or is missing.\n\n## During the session\n\n### Challenge against the glossary\n\nWhen the user uses a term that conflicts with `wiki/projects/\u003cname>/glossary.md` or a linked concept page, call it out immediately. \"Your glossary defines 'cancellation' as X, but you seem to mean Y — which is it?\"\n\n### Sharpen fuzzy language\n\nWhen the user uses vague or overloaded terms, propose a precise canonical term. \"You're saying 'account' — do you mean the Customer or the User? Those are different things.\"\n\n### Discuss concrete scenarios\n\nWhen domain relationships are being discussed, stress-test them with specific scenarios. Invent scenarios that probe edge cases and force precision about boundaries between concepts.\n\n### Cross-reference with code\n\nWhen the user states how something works, check whether the code agrees. If you find a contradiction, surface it: \"Your code cancels entire Orders, but you just said partial cancellation is possible — which is right?\"\n\n### Update the brain inline\n\nWhen a term is resolved, update the vault **right there**. Do not batch.\n\n1. Append or edit the term in `wiki/projects/\u003cname>/glossary.md` using `references/glossary-format.md`.\n2. If the term spans projects or is a first-class domain idea, also create or update `wiki/concepts/\u003cslug>.md` with a wikilink back to the project glossary.\n3. Update `index.md` when creating a new page.\n4. Append `log.md`: `## [YYYY-MM-DD] grill | \u003cshort title>`.\n\nGlossary pages are **domain language only** — no implementation details, no file paths, no API shapes. Implementation belongs in code comments, gotchas, or graphify.\n\nFull prose only in vault files — never compressed/ponytail-style text in vault files.\n\n### Offer ADRs sparingly\n\nOnly offer to create a decision record when all three are true:\n\n1. **Hard to reverse** — meaningful cost to change later\n2. **Surprising without context** — a future reader will wonder why\n3. **Real trade-off** — genuine alternatives existed and one was chosen for specific reasons\n\nIf any is missing, skip. Use `references/adr-format.md`. Write to `wiki/projects/\u003cname>/decisions/`.\n\n### Multi-context repos\n\nIf the project has distinct bounded areas (e.g. ordering vs billing in one monorepo):\n\n- Maintain `wiki/projects/\u003cname>/context-map.md` listing contexts, brain paths, and relationships.\n- Each context can have its own section in `glossary.md` or a dedicated concept page when large.\n\nInfer which context the current topic relates to. If unclear, ask.\n\n## Exit criteria\n\nStop grilling when:\n\n- All terms used in the success criteria are defined or confirmed against the glossary\n- Open design branches are resolved or explicitly deferred with a logged decision\n- No contradictions remain between user intent, glossary, and code (or contradictions are acknowledged)\n\nThen hand off to `task-loop` triage (step 2) with a one-line summary of resolved vocabulary.\n\n## Related skills\n\n- `task-loop` — parent workflow; grill is step 1.5 before triage (`ticket-loop` is an alias)\n- `second-brain` — vault schema and ingest/query rules\n- `compound-fix` — post-fix patterns (not glossary terms)\n\n=== ~/.cursor/skills/grill-with-docs/references/glossary-format.md ===\n\n# Glossary format (Second Brain)\n\nTarget: `wiki/projects/\u003cname>/glossary.md`\n\nAdapted from mattpocock/grill-with-docs CONTEXT format — stored in the vault, not in the repo.\n\n## Page frontmatter\n\n```markdown\n---\ntype: synthesis\ntags: [\u003cname>, glossary]\ncreated: YYYY-MM-DD\nupdated: YYYY-MM-DD\n---\n\n# \u003cname> glossary\n\n**Summary**: Canonical domain language for \u003cproject>. Implementation-free — terms only.\n\n## Language\n\n**Order**:\nA one or two sentence description of the term.\n_Avoid_: Purchase, transaction\n\n**Invoice**:\nA request for payment sent to a customer after delivery.\n_Avoid_: Bill, payment request\n\n## Related\n\n- [[\u003cname>/overview]]\n- [[\u003cname>/subsystems]]\n- [[relevant-concept]]\n```\n\n## Rules\n\n- **Be opinionated.** Pick one canonical term; list alternatives under `_Avoid_`.\n- **Keep definitions tight.** One or two sentences. Define what it IS, not what it does.\n- **Project-specific only.** General programming concepts (timeouts, DTOs, retries) do not belong unless the project gives them a special meaning.\n- **Group under subheadings** when natural clusters emerge (e.g. `## Publishing`, `## Finance`).\n- **No implementation.** No file paths, class names, or API fields — those live in gotchas, subsystems, or graphify.\n- **Wikilink** related concept pages and `[[\u003cname>/gotchas]]` where a term has known pitfalls.\n\n## Context map (optional)\n\nFor repos with multiple bounded contexts, add `wiki/projects/\u003cname>/context-map.md`:\n\n```markdown\n# \u003cname> context map\n\n## Contexts\n\n- [[catalog]] — product records and metadata\n- Billing — invoicing and transactions (see [[my-app/glossary#Billing]])\n\n## Relationships\n\n- Catalog → file_service: presigned URLs for uploads\n- billing_service → catalog_service: channel eligibility\n```\n\n## Single vs multi-context\n\n- **Single context:** one `glossary.md` per project wiki.\n- **Multiple contexts:** `context-map.md` + glossary sections or dedicated `wiki/concepts/` pages per large context.\n\n=== ~/.cursor/skills/grill-with-docs/references/adr-format.md ===\n\n# Decision record format (Second Brain)\n\nTarget: `wiki/projects/\u003cname>/decisions/NNNN-slug.md`\n\nADRs live in the brain, not in `docs/adr/` inside the repo.\n\n## Frontmatter\n\n```markdown\n---\ntype: synthesis\ntags: [\u003cname>, decision]\nstatus: proposed | accepted | deprecated | superseded\ncreated: YYYY-MM-DD\nupdated: YYYY-MM-DD\nsupersedes: \"\"\nsuperseded_by: \"\"\n---\n\n# Short title of the decision\n\nOne to three sentences: context, what was decided, and why.\n```\n\nThat is enough for most records. Optional sections only when they add value:\n\n- **Considered options** — when rejected alternatives are worth remembering\n- **Consequences** — non-obvious downstream effects\n\n## Numbering\n\nScan `wiki/projects/\u003cname>/decisions/` for the highest `NNNN` prefix and increment by one.\n\n## After writing\n\n1. Update `index.md` (Decisions section for the project).\n2. Append `log.md`: `## [YYYY-MM-DD] decision | \u003ctitle>`.\n3. Wikilink from `glossary.md` or `overview.md` if the decision defines a term or boundary.\n\n## When to offer\n\nAll three must be true:\n\n1. Hard to reverse\n2. Surprising without context\n3. Result of a real trade-off\n\nSkip easy-to-reverse, obvious, or no-alternative choices.\n\n=== ~/.cursor/skills/compound-fix/SKILL.md ===\n\n---\nname: compound-fix\ndescription: >\n  After a bug fix or feature on a codebase, file reusable patterns into the LLM wiki — not every ticket. Use when the user says \"worth filing\", \"compound this\n  fix\", \"remember this gotcha\", \"add to gotchas\", \"ticket done — file it\", or at\n  the end of dev/Jira work when something non-obvious was learned on any project.\n---\n\n# Compound fix (dev → wiki)\n\nFile **what you learned**, not what you changed. Skip routine fixes.\n\n**Vault:** `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\n## When to compound\n\n| Compound | Skip |\n|----------|------|\n| Domain rule the ticket or prompt did not explain | Typo / rename |\n| Recurring subsystem bug | Obvious one-liner |\n| Dead-end approach (A failed, B worked) | Env-only issue |\n| Non-obvious domain or partner edge case | Fully in code comments |\n\n## Where to write\n\nResolve project name = git root folder basename (example: my-app).\n\n| Content | Path |\n|---------|------|\n| Project gotcha (default) | `wiki/projects/\u003cname>/gotchas.md` |\n| Canonical domain term (grill) | `wiki/projects/\u003cname>/glossary.md` |\n| Domain concept | `wiki/concepts/\u003cslug>.md` |\n| Cross-project pattern | `wiki/concepts/\u003cslug>.md` |\n\nAlso update `index.md` if you create a new page. Append `log.md`: `## [YYYY-MM-DD] compound | \u003cshort title>`.\n\n## Entry format (gotchas)\n\n```markdown\n### Short title\n- **What**: one sentence\n- **Why it matters**: when you'll hit it again\n- **Where**: file/symbol or subsystem\n- **Refs**: TICKET-KEY (optional)\n```\n\nFull prose only — never compressed text in vault files.\n\n## Procedure\n\n1. Confirm with the user (or infer from \"worth filing\") that the insight is reusable.\n2. Draft the entry; do not paste diffs or line-by-line change logs.\n3. Append to `wiki/projects/\u003cname>/gotchas.md` or update the right concept page; wikilink related pages.\n4. Update `index.md` + `log.md` if needed.\n\n## Routing\n\n- Code exploration → graphify (repo), not this skill.\n- Full article/paper ingest → `second-brain` ingest workflow.\n- This skill → **short dev lessons** from tickets.\n\nSee `second-brain/references/compound.md` for detail.\n\n=== ~/.cursor/skills/second-brain/SKILL.md ===\n\n---\nname: second-brain\ndescription: >\n  Personal knowledge base (Karpathy LLM-wiki) living in the Obsidian vault at\n  \"\u003cpath-to-your-vault>\". Use whenever the user wants to\n  recall, save, or build up knowledge: \"what do I know about X\", \"add this to my\n  brain/second brain/vault\", \"remember this\", \"ingest this article/paper/note\",\n  \"save this\", \"what have I read about\", \"summarize my notes on\", \"file this\",\n  \"triage my inbox\", or any research/personal-knowledge question that is NOT about\n  a specific codebase. For code/architecture questions use graphify instead.\n---\n\n# Second Brain (LLM Wiki)\n\nAn incrementally built, interlinked markdown knowledge base. The user curates sources and asks questions; the agent does all bookkeeping (summarize, cross-reference, file, keep consistent). Obsidian is the IDE, the agent is the programmer, the wiki is the codebase.\n\n**Vault root:** `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\nThe vault's own `AGENTS.md` is the authoritative schema. Read `\u003cvault>/AGENTS.md` before operating, then follow it. This skill is the global router + quick reference.\n\n## When to use\n\n- Recall: \"what do I know about...\", \"what have I read on...\", \"summarize my notes on...\"\n- Capture: \"remember this\", \"add to my brain\", \"save this\", \"ingest this article\"\n- Maintain: \"triage my inbox\", \"lint my wiki\", \"is anything contradictory\"\n- Session handoff: \"/handoff\", \"save context for later\" -> `conversation-handoff` skill\n- After a fix: \"worth filing?\", \"compound this gotcha\", \"add to gotchas\"\n- Before dev work: stress-test domain language -> `grill-with-docs` skill (glossary + decisions in project wiki)\n- Research/personal questions that are not about a specific codebase\n\n## Routing\n\n- Knowledge / research / personal -> this wiki (the vault).\n- Code / architecture / \"how does this repo work\" -> triage first: literal in log/config -> grep; structural/cross-service -> graphify (`explain` / `path` / symbol-seeded `query` on the project graph, or read `\u003cvault>/projects/\u003cname>/`); domain rule -> `wiki/projects/\u003cname>/glossary.md` + `gotchas.md` + `subsystems.md`.\n- Dev work on any repo (prompt or Jira) -> `task-loop` skill (`ticket-loop` alias; grill uses `grill-with-docs`; reads `wiki/projects/\u003cname>/` + repo `graphify-out/`).\n- If unsure, check `\u003cvault>/index.md` first - it is cheap and tells you what the brain contains.\n\n## Three layers (see vault AGENTS.md for detail)\n\n1. `raw/` - immutable sources (never edit). Images in `raw/assets/`.\n2. `wiki/` - agent-owned pages: `sources/`, `entities/`, `concepts/`, `overview.md`.\n3. `index.md` (catalog, read first) + `log.md` (append-only, `## [YYYY-MM-DD] type | Title`).\n\n## Operations (quick reference)\n\n- **Ingest** a source -> `references/ingest.md`\n- **Query** the wiki -> `references/query.md`\n- **Compound** a dev fix -> `references/compound.md` (or `compound-fix` skill)\n- **Grill** domain language before coding -> `grill-with-docs` skill (`wiki/projects/\u003cname>/glossary.md`, `decisions/`)\n- **Handoff** a Cursor session -> `references/handoff.md` (or `conversation-handoff` skill)\n- **Lint** the wiki -> `references/lint.md`\n\nAlways read `index.md` first on a query. Always update `index.md` + append `log.md` on an ingest. File good query answers back as new pages so explorations compound.\n\n## Hard rules\n\n- NEVER fabricate. Missing fact -> say so or leave a `_` placeholder.\n- NEVER edit `raw/` or hand-edit `projects/`.\n- Cite the source (path under `raw/` or URL) for every non-obvious claim.\n- Use `[[wikilinks]]` and YAML frontmatter on every wiki page.\n- **Ponytail terse chat is for answers only.** Everything written INTO the vault (wiki pages, `index.md`, `log.md`) must be full, human-readable prose. Never write compressed text into the vault.\n\n## Scale note\n\nPure-context (read index.md -> pages) is correct and reliable below ~100k tokens / a few hundred pages. Do not add RAG/vector search before then. If the brain outgrows index-first browsing, add a markdown search tool (e.g. qmd) - not a vector DB.\n\n=== ~/.cursor/skills/second-brain/references/ingest.md ===\n\n# Ingest a source\n\nGoal: integrate a new source into the wiki so knowledge compounds - not just file it.\n\nVault root: `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\n## Steps\n\n1. **Locate the source.** It should be in `raw/`. If the user gave a URL, fetch it to markdown into `raw/` first (Obsidian Web Clipper, or `graphify add \u003curl>` which writes to `./raw`, or fetch + write). Download referenced images to `raw/assets/` when useful. Never edit a source after it lands in `raw/`.\n\n2. **Read it fully.** For sources with important images, read the text first, then view the images separately (LLMs can't read inline-image markdown in one pass).\n\n3. **Discuss takeaways** with the user (skip in batch mode). Confirm what to emphasize.\n\n4. **Write a source summary page** in `wiki/sources/\u003cslug>.md` with frontmatter (`type: source`, tags, created/updated, `sources: [\"raw/\u003cfile>\"]`), a one-line `**Summary**`, key points, and `## Related` wikilinks.\n\n5. **Integrate across the wiki.** Create or update relevant `wiki/entities/` and `wiki/concepts/` pages. Integrate the new information into existing pages - revise summaries, add cross-references, and FLAG where the new source contradicts an existing claim (note both and the sources). A single source typically touches 10-15 pages.\n\n6. **Update `index.md`** - add the new pages under the right category with one-line summaries.\n\n7. **Update `wiki/overview.md`** if the source shifts the top-level synthesis.\n\n8. **Append `log.md`**: `## [YYYY-MM-DD] ingest | \u003cTitle>`.\n\n## Rules\n\n- Cite `raw/\u003cfile>` (or URL) for every claim taken from the source.\n- Full prose only - never compressed text in vault files.\n- Prefer many focused pages over one catch-all page.\n- Use consistent terminology; add an alias line when a concept has multiple names.\n\n=== ~/.cursor/skills/second-brain/references/query.md ===\n\n# Query the wiki\n\nVault root: `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\n## Steps\n\n1. **Read `index.md` first.** It is the catalog - use it to find the 1-3 candidate pages relevant to the question instead of scanning the whole vault.\n\n2. **Read those pages.** Follow `[[wikilinks]]` to neighbors when the answer spans multiple pages. At small scale, reading the whole relevant cluster is fine and more reliable than guessing.\n\n3. **Answer with citations.** Cite the wiki pages and underlying `raw/` sources used. If the wiki lacks the answer, say so plainly - do not fabricate. Offer to ingest a source that would fill the gap.\n\n4. **File good answers back.** If the answer is reusable (a comparison, a synthesis, a discovered connection), write it as a new `wiki/concepts/` or `wiki/sources/` page, update `index.md`, and append `log.md` (`## [YYYY-MM-DD] query | \u003ctopic>`). Explorations should compound into the brain, not vanish into chat.\n\n## Output\n\n- Chat answers MAY use ponytail terse style; vault writes stay full prose.\n- Anything written back into the vault MUST be full prose.\n\n## Routing reminder\n\nIf the question is actually about a codebase, use graphify (`graphify query` on the project graph) or the mirrored `projects/\u003cname>/` wiki rather than hand-searching the brain.\n\n=== ~/.cursor/skills/second-brain/references/compound.md ===\n\n# Compound a dev fix into the wiki\n\nUse after ticket or prompt work when something **reusable** was learned.\n\nVault root: `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\n## Steps\n\n1. **Decide** — reusable pattern, gotcha, or domain rule? If routine, stop.\n2. **Choose target** — default `wiki/projects/\u003cname>/gotchas.md` (replace `\u003cname>` with my-app or your repo folder name); domain topics → `wiki/concepts/`.\n3. **Write** using the gotcha format in the `compound-fix` skill (What / Why / Where / Refs).\n4. **Link** — add `[[wikilinks]]` to related concept pages.\n5. **Catalog** — update `index.md` if new page; append `log.md` with `## [DATE] compound | Title`.\n\n## Rules\n\n- Never file \"changed line 87\" — file the **rule** that line enforced.\n- Never edit `raw/` or `projects/` mirrors.\n- Full prose in vault; ponytail terse style OK in chat only.\n\n=== ~/.cursor/skills/second-brain/references/lint.md ===\n\n# Lint the wiki\n\nPeriodic health-check. Vault root: `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\n## Checks\n\n1. **Contradictions** - pages making conflicting claims about the same entity/fact. Report both, with sources. Do NOT auto-resolve a decision reversal; surface it for the user.\n2. **Stale claims** - statements superseded by a newer source. Supersede (note what replaced what + when), do not silently delete.\n3. **Orphans** - pages with no inbound `[[wikilinks]]`. Suggest where to link them.\n4. **Missing pages** - concepts/entities mentioned across pages but lacking their own page.\n5. **Missing cross-references** - related pages that should link to each other.\n6. **Index drift** - pages not listed in `index.md`, or index entries pointing at moved/deleted pages.\n7. **Gaps** - important questions the corpus raises but doesn't answer; suggest sources to ingest.\n\n## Output\n\nProduce a report grouped by check, each item with the page path and a suggested fix. Apply fixes only after the user approves (or in an explicitly authorized batch). Append a `## [YYYY-MM-DD] lint | \u003csummary>` line to `log.md`.\n\n## Rules\n\n- Prefer stable identity (the source citation) over textual proximity when detecting duplicates/contradictions.\n- Never fabricate to \"fill\" a gap - flag it instead.\n- Full prose only in any page you touch.\n\n=== ~/.cursor/skills/second-brain/references/handoff.md ===\n\n# Session handoff into the vault\n\nVault root: `\u003cpath-to-your-vault>` (quote the path if it contains spaces).\n\nUse the `conversation-handoff` skill for `/handoff` in Cursor. Do not write to `/tmp`.\n\n## Location\n\n`wiki/handoffs/YYYY-MM-DD-\u003cslug>.md`\n\n## After writing\n\n1. Append `log.md`: `## [YYYY-MM-DD] handoff | Title`\n2. Add entry under **Handoffs** in `index.md`\n3. Wikilink related project/concept pages when applicable\n\n## vs other persistence\n\n| Mechanism | Where | When |\n|-----------|-------|------|\n| conversation-handoff | `wiki/handoffs/` | Cursor session switch, context limit |\n| compound-fix | `wiki/projects/\u003cname>/gotchas.md` | Reusable dev lesson from a ticket |\n| ingest | `raw/` + `wiki/sources/` | Articles, docs, external sources |\n\nHandoffs are **session snapshots** — stale over time. Receiving agent should verify live git/kanban state.\n"}</script>
+
+<footer>
+  <div class="hazard" aria-hidden="true"></div>
+  <div class="wrap foot micro">
+    <span>⊕ TASK_LOOP · ASSEMBLE THE STACK</span>
+    <span>GRAPHIFY · KARPATHY LLM-WIKI · OBSIDIAN · CURSOR SKILLS</span>
+    <span>//END</span>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var nodes=document.querySelectorAll('[data-step]');
+  function select(id){
+    for(var i=0;i<nodes.length;i++){
+      var n=nodes[i];
+      if(n.dataset.step===id){n.classList.add('is-active');}else{n.classList.remove('is-active');}
+    }
+  }
+  var dag=document.querySelectorAll('#loop-dag [data-step]');
+  for(var i=0;i<dag.length;i++){
+    (function(n){
+      function go(){
+        select(n.dataset.step);
+        var card=document.getElementById('step-'+n.dataset.step);
+        if(card){card.scrollIntoView({behavior:'smooth',block:'nearest'});}
+      }
+      n.addEventListener('click',go);
+      n.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();go();}});
+    })(dag[i]);
+  }
+  var cards=document.querySelectorAll('.step');
+  for(var j=0;j<cards.length;j++){
+    (function(c){c.addEventListener('click',function(){select(c.dataset.step);});})(cards[j]);
+  }
+  select('intent');
+
+  var kitEl=document.getElementById('kit-json');
+  var kit=kitEl?JSON.parse(kitEl.textContent):{skills:[],installPrompt:''};
+  var modal=document.getElementById('skill-modal');
+  var title=document.getElementById('skill-modal-title');
+  var pathEl=document.getElementById('skill-modal-path');
+  var bodyEl=document.getElementById('skill-modal-body');
+  var tabs=document.getElementById('skill-modal-tabs');
+  var copyBtn=document.getElementById('skill-modal-copy');
+  var lastFocus=null;
+  var currentText='';
+  function skillById(id){
+    for(var i=0;i<kit.skills.length;i++){if(kit.skills[i].id===id)return kit.skills[i];}
+    return null;
+  }
+  function showFile(skill,idx){
+    var f=skill.files[idx];
+    pathEl.textContent=f.dest;
+    title.textContent=skill.name;
+    currentText=f.text;
+    bodyEl.textContent=f.text;
+    var buttons=tabs.querySelectorAll('button');
+    for(var i=0;i<buttons.length;i++){buttons[i].classList.toggle('is-on',i===idx);}
+  }
+  function openSkill(id){
+    var skill=skillById(id);
+    if(!skill)return;
+    lastFocus=document.activeElement;
+    tabs.innerHTML='';
+    for(var i=0;i<skill.files.length;i++){
+      (function(idx){
+        var b=document.createElement('button');
+        b.type='button';
+        b.className='modal__tab'+(idx===0?' is-on':'');
+        b.textContent=skill.files[idx].label;
+        b.addEventListener('click',function(){showFile(skill,idx);});
+        tabs.appendChild(b);
+      })(i);
+    }
+    tabs.hidden=skill.files.length<2;
+    showFile(skill,0);
+    modal.hidden=false;
+    document.body.classList.add('modal-open');
+    copyBtn.focus();
+  }
+  function closeModal(){
+    if(!modal||modal.hidden)return;
+    modal.hidden=true;
+    document.body.classList.remove('modal-open');
+    if(lastFocus&&lastFocus.focus)lastFocus.focus();
+  }
+  function flash(btn){
+    var label=btn.getAttribute('data-label')||'Copy';
+    btn.textContent='Copied';
+    btn.classList.add('is-done');
+    setTimeout(function(){btn.textContent=label;btn.classList.remove('is-done');},1600);
+  }
+  function copyText(text,btn){
+    navigator.clipboard.writeText(String(text).trim()).then(function(){flash(btn);});
+  }
+  document.addEventListener('click',function(e){
+    var open=e.target.closest('[data-open-skill]');
+    if(open){openSkill(open.getAttribute('data-open-skill'));return;}
+    if(e.target.closest('[data-close-modal]'))closeModal();
+    var card=e.target.closest('.need--skill');
+    if(card&&!e.target.closest('button')){
+      var b=card.querySelector('[data-open-skill]');
+      if(b)openSkill(b.getAttribute('data-open-skill'));
+    }
+  });
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape')closeModal();
+  });
+  if(copyBtn){
+    copyBtn.addEventListener('click',function(){copyText(currentText,copyBtn);});
+  }
+  var copies=document.querySelectorAll('.copy');
+  for(var k=0;k<copies.length;k++){
+    copies[k].addEventListener('click',function(ev){
+      var btn=this;
+      if(btn.hasAttribute('data-open-skill'))return;
+      if(btn.hasAttribute('data-close-modal'))return;
+      if(btn.id==='skill-modal-copy')return;
+      if(btn.hasAttribute('data-copy-install')){
+        ev.preventDefault();
+        copyText(kit.installPrompt,btn);
+        return;
+      }
+      var prompt=btn.closest('.prompt');
+      if(!prompt)return;
+      var pre=prompt.querySelector('pre');
+      copyText(pre.textContent,btn);
+    });
+  }
+})();
+</script>
+</body>
+</html>
