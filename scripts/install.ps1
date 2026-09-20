@@ -1,4 +1,7 @@
 #Requires -Version 5.1
+param(
+    [string]$PrepareVault = ""
+)
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -9,8 +12,10 @@ $PathMarker = "# agentic-os-path"
 
 try { Clear-Host } catch {}
 
-Get-Content (Join-Path $ScriptDir "install-banner.txt")
-Write-Host ""
+if (-not $PrepareVault) {
+    Get-Content (Join-Path $ScriptDir "install-banner.txt")
+    Write-Host ""
+}
 
 function Log($msg) { Write-Host "  $msg" }
 function Warn($msg) { Write-Host "  [!] $msg" -ForegroundColor Yellow }
@@ -24,9 +29,42 @@ function Ensure-PathNow {
 
 Ensure-PathNow
 
+function Refresh-UserPath {
+    $machine = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    $user = [Environment]::GetEnvironmentVariable("Path", "User")
+    $env:Path = "$machine;$user;$env:Path"
+    Ensure-PathNow
+}
+
+function Test-Toolchain {
+    if (Get-Command cc -ErrorAction SilentlyContinue) {
+        Log "C toolchain found"
+        return
+    }
+    if (Get-Command cl -ErrorAction SilentlyContinue) {
+        Log "C toolchain found"
+        return
+    }
+    Warn "A C toolchain is required for better-sqlite3. Install Visual Studio Build Tools with the Desktop C++ workload."
+}
+
+function Install-NodeApp {
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { return $false }
+    try {
+        winget install --exact --id OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements
+        Refresh-UserPath
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
+}
+
 function Test-NodeVersion {
     if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-        Die "Node.js 20+ is required. Install: winget install OpenJS.NodeJS.LTS"
+        Log "Node.js 20+ is required. Installing..."
+        if (-not (Install-NodeApp) -or -not (Get-Command node -ErrorAction SilentlyContinue)) {
+            Die "Node.js 20+ is required. Install: winget install OpenJS.NodeJS.LTS"
+        }
     }
     $ver = (node -p "process.versions.node")
     $major = [int]($ver.Split(".")[0])
@@ -39,8 +77,7 @@ function Install-Bun {
         Log "Bun $(bun --version)"
         return
     }
-    $reply = Read-Host "  Bun not found. Install now? [Y/n]"
-    if ($reply -and $reply -notmatch "^[Yy]") { Die "Bun is required for Agentic OS" }
+    Log "Installing Bun..."
     irm https://bun.sh/install.ps1 | iex
     Ensure-PathNow
     if (-not (Get-Command bun -ErrorAction SilentlyContinue)) { Die "Bun install failed" }
@@ -52,8 +89,7 @@ function Install-Uv {
         Log "uv installed"
         return
     }
-    $reply = Read-Host "  uv not found. Install now? [Y/n]"
-    if ($reply -and $reply -notmatch "^[Yy]") { Die "uv is required for Graphify" }
+    Log "Installing uv..."
     irm https://astral.sh/uv/install.ps1 | iex
     Ensure-PathNow
     if (-not (Get-Command uv -ErrorAction SilentlyContinue)) { Die "uv install failed" }
@@ -63,8 +99,110 @@ function Install-Uv {
 function Test-Git {
     if (Get-Command git -ErrorAction SilentlyContinue) {
         Log (git --version)
+        return
+    }
+    Log "Installing Git..."
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        try {
+            winget install --exact --id Git.Git --accept-package-agreements --accept-source-agreements
+            Refresh-UserPath
+        } catch {}
+    }
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        Log (git --version)
     } else {
         Warn "Git not found - git hooks will be skipped"
+    }
+}
+
+function Test-CursorInstalled {
+    if (Get-Command cursor -ErrorAction SilentlyContinue) { return $true }
+    $paths = @(
+        (Join-Path $env:LOCALAPPDATA "Programs\cursor\Cursor.exe"),
+        (Join-Path $env:LOCALAPPDATA "Programs\Cursor\Cursor.exe"),
+        (Join-Path $env:ProgramFiles "Cursor\Cursor.exe")
+    )
+    foreach ($p in $paths) {
+        if ($p -and (Test-Path -LiteralPath $p)) { return $true }
+    }
+    return $false
+}
+
+function Test-ClaudeInstalled {
+    if (Get-Command claude -ErrorAction SilentlyContinue) { return $true }
+    $paths = @(
+        (Join-Path $env:USERPROFILE ".local\bin\claude.exe"),
+        (Join-Path $env:USERPROFILE ".local\bin\claude"),
+        (Join-Path $env:USERPROFILE ".claude\local\claude.exe"),
+        (Join-Path $env:USERPROFILE ".claude\local\claude")
+    )
+    foreach ($p in $paths) {
+        if ($p -and (Test-Path -LiteralPath $p)) { return $true }
+    }
+    return $false
+}
+
+function Install-CursorApp {
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { return $false }
+    try {
+        winget install --exact --id Anysphere.Cursor --accept-package-agreements --accept-source-agreements
+        Refresh-UserPath
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
+}
+
+function Install-ClaudeApp {
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        try {
+            winget install --exact --id Anthropic.ClaudeCode --accept-package-agreements --accept-source-agreements
+            Refresh-UserPath
+            if ($LASTEXITCODE -eq 0) { return $true }
+        } catch {}
+    }
+    try {
+        irm https://claude.ai/install.ps1 | iex
+        Refresh-UserPath
+        return (Test-ClaudeInstalled)
+    } catch {
+        return $false
+    }
+}
+
+function Ensure-Agents {
+    Write-Host ""
+    Log "Preparing Cursor and Claude Code. Skills are copied for both."
+    $haveCursor = Test-CursorInstalled
+    $haveClaude = Test-ClaudeInstalled
+    if ($haveCursor) { Log "Cursor is already installed" }
+    if ($haveClaude) { Log "Claude Code is already installed" }
+    if ($haveCursor -or $haveClaude) { return }
+    if ([Console]::IsInputRedirected) {
+        Warn "No coding agent found (non-interactive). Install Cursor (https://cursor.com/download) or Claude Code (https://code.claude.com/docs/en/overview)"
+        return
+    }
+    Log "Installing Cursor..."
+    if ((Install-CursorApp) -and (Test-CursorInstalled)) {
+        $haveCursor = $true
+        Log "Cursor installed"
+    }
+    Log "Installing Claude Code..."
+    if ((Install-ClaudeApp) -and (Test-ClaudeInstalled)) {
+        $haveClaude = $true
+        Log "Claude Code installed"
+    }
+    if ($haveCursor -or $haveClaude) { return }
+    Log "Install Cursor from https://cursor.com/download or Claude Code from https://code.claude.com/docs/en/overview"
+    try { Start-Process "https://cursor.com/download" } catch {}
+    try { Start-Process "https://code.claude.com/docs/en/overview" } catch {}
+    Read-Host "  Press Enter when Cursor or Claude Code is installed (or continue without them)" | Out-Null
+    if (Test-CursorInstalled) {
+        Log "Cursor is installed"
+    } elseif (Test-ClaudeInstalled) {
+        Log "Claude Code is installed"
+    } else {
+        Warn "No coding agent detected - skills will still be copied to ~/.cursor/skills and ~/.claude/skills"
     }
 }
 
@@ -115,6 +253,105 @@ function Get-CodeRoot {
     return (Resolve-Path $expanded).Path
 }
 
+function Get-DefaultBrainRoot {
+    if ($env:AGENTIC_BRAIN_DIR) {
+        return ($env:AGENTIC_BRAIN_DIR -replace "^~", $env:USERPROFILE)
+    }
+    return (Join-Path $env:USERPROFILE "SecondBrain\Second Brain")
+}
+
+function Create-ObsidianVault($vault) {
+    if (-not $vault) { Die "Vault path is required" }
+    New-Item -ItemType Directory -Path (Join-Path $vault ".obsidian") -Force | Out-Null
+}
+
+function Test-ObsidianInstalled {
+    if (Get-Command obsidian -ErrorAction SilentlyContinue) { return $true }
+    $paths = @(
+        (Join-Path $env:LOCALAPPDATA "Programs\Obsidian\Obsidian.exe"),
+        (Join-Path $env:ProgramFiles "Obsidian\Obsidian.exe")
+    )
+    if (${env:ProgramFiles(x86)}) {
+        $paths += (Join-Path ${env:ProgramFiles(x86)} "Obsidian\Obsidian.exe")
+    }
+    foreach ($p in $paths) {
+        if ($p -and (Test-Path -LiteralPath $p)) { return $true }
+    }
+    return $false
+}
+
+function Install-ObsidianApp {
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) { return $false }
+    try {
+        winget install --exact --id Obsidian.Obsidian --accept-package-agreements --accept-source-agreements
+        Refresh-UserPath
+        return ($LASTEXITCODE -eq 0)
+    } catch {
+        return $false
+    }
+}
+
+function Show-ObsidianHowto {
+    $location = Join-Path $env:USERPROFILE "SecondBrain"
+    Write-Host ""
+    Log "Install Obsidian from https://obsidian.md/download"
+    Log "Create a vault (a folder of markdown files):"
+    Log "  1. Open Obsidian"
+    Log "  2. Create new vault"
+    Log "     Name: Second Brain"
+    Log "     Location: $location"
+    Log "  Or: vault icon -> Manage vaults... -> Open folder as vault"
+    Log "     and pick the folder this installer creates."
+}
+
+function Open-ObsidianDownload {
+    try { Start-Process "https://obsidian.md/download" } catch {}
+}
+
+function Ensure-Obsidian {
+    Write-Host ""
+    Log "Obsidian is the app that opens your Second Brain vault."
+    if (Test-ObsidianInstalled) {
+        Log "Obsidian is already installed"
+        return
+    }
+    if ([Console]::IsInputRedirected) {
+        if ((Install-ObsidianApp) -and (Test-ObsidianInstalled)) {
+            Log "Obsidian installed"
+            return
+        }
+        Warn "Obsidian not found (non-interactive). Install from https://obsidian.md/download"
+        return
+    }
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        Log "Installing Obsidian..."
+        if ((Install-ObsidianApp) -and (Test-ObsidianInstalled)) {
+            Log "Obsidian installed"
+            return
+        }
+        Warn "Obsidian install did not finish - follow the steps below"
+    }
+    Show-ObsidianHowto
+    Open-ObsidianDownload
+    Read-Host "  Press Enter when Obsidian is installed (or continue without it)" | Out-Null
+    if (Test-ObsidianInstalled) {
+        Log "Obsidian is installed"
+    } else {
+        Warn "Obsidian not detected - the vault folder will still work as markdown"
+    }
+}
+
+function Prepare-BrainVault {
+    $vault = Get-DefaultBrainRoot
+    Write-Host ""
+    Log "A vault is a folder Obsidian opens. Preparing:"
+    Log "  $vault"
+    Create-ObsidianVault $vault
+    Log "Vault folder ready."
+    Log "In Obsidian: vault icon -> Manage vaults... -> Open folder as vault"
+    Log "  and choose that folder if it is not already listed."
+}
+
 function Get-BrainRoot {
     if ($env:AGENTIC_BRAIN_DIR) {
         $expanded = $env:AGENTIC_BRAIN_DIR -replace "^~", $env:USERPROFILE
@@ -126,11 +363,12 @@ function Get-BrainRoot {
                 Die "Vault directory must exist: $expanded"
             }
         }
+        Create-ObsidianVault $expanded
         $resolved = (Resolve-Path $expanded).Path
         Log "Vault: $resolved (AGENTIC_BRAIN_DIR)"
         return $resolved
     }
-    $default = Join-Path $env:USERPROFILE "SecondBrain\Second Brain"
+    $default = Get-DefaultBrainRoot
     $input = Read-Host "  Where is your Second Brain vault? [$default]"
     if ([string]::IsNullOrWhiteSpace($input)) { $input = $default }
     $expanded = $input -replace "^~", $env:USERPROFILE
@@ -142,7 +380,40 @@ function Get-BrainRoot {
             Die "Vault directory must exist: $expanded"
         }
     }
+    Create-ObsidianVault $expanded
     return (Resolve-Path $expanded).Path
+}
+
+function Seed-BrainAndSkills($vault) {
+    Log "Seeding Second Brain vault and syncing Cursor and Claude Code skills..."
+    $bootstrap = Join-Path $Root "scripts\install-bootstrap.mjs"
+    node $bootstrap --vault $vault
+    if ($LASTEXITCODE -ne 0) { Die "Vault and skills bootstrap failed" }
+}
+
+function Open-ObsidianVault($vault) {
+    if (-not (Test-ObsidianInstalled)) { return }
+    $encoded = [uri]::EscapeDataString($vault)
+    $uri = "obsidian://open?path=$encoded"
+    try { Start-Process $uri } catch {
+        try { Start-Process "Obsidian" $vault } catch {}
+    }
+    Log "Opened vault in Obsidian (Manage vaults -> Open folder as vault if it did not appear)"
+}
+
+function Update-GraphifyRepo {
+    Write-Host ""
+    Log "Building the Graphify graph for this Agentic OS clone..."
+    if (-not (Get-Command graphify -ErrorAction SilentlyContinue)) {
+        Warn "graphify not on PATH - run graphify update . later from this repo"
+        return
+    }
+    graphify update .
+    if ($LASTEXITCODE -eq 0) {
+        Log "Graphify graph ready"
+    } else {
+        Warn "graphify update failed - run it later from this repo"
+    }
 }
 
 function Write-AgenticConfig($codeRoot, $brainRoot) {
@@ -223,8 +494,10 @@ function Install-Graphify {
     uv tool install --upgrade graphifyy
     Ensure-PathNow
     if (-not (Get-Command graphify -ErrorAction SilentlyContinue)) { Die "graphify not found after uv tool install" }
-    graphify install
-    graphify cursor install --project
+    graphify install --platform cursor
+    graphify install --platform claude
+    graphify install --project --platform cursor
+    graphify install --project --platform claude
     Log "Graphify $(graphify --version)"
 }
 
@@ -292,8 +565,8 @@ function Prompt-Telegram {
             return
         }
     } else {
-        $reply = Read-Host "  Set up Telegram now? [Y/n]"
-        if ($reply -and $reply -notmatch "^[Yy]") {
+        $reply = Read-Host "  Set up Telegram now? [y/N]"
+        if ($reply -notmatch "^[Yy]") {
             Log "Telegram skipped - set it up later in the dashboard Routines panel"
             return
         }
@@ -349,9 +622,13 @@ function Print-Success($codeRoot, $brainRoot) {
     Write-Host "  Telegram:   $telegramStatus"
     Write-Host "  Projects:   $codeRoot"
     Write-Host "  Vault:      $brainRoot"
+    Write-Host "  Skills:     $env:USERPROFILE\.cursor\skills"
+    Write-Host "              $env:USERPROFILE\.claude\skills"
     Write-Host ""
-    Write-Host "  Start:      bun run dev"
-    Write-Host "  Restart Cursor so agents can run graphify query."
+    Write-Host "  1. bun run dev"
+    Write-Host "  2. Open this repo in Cursor (fully restart) or run: claude"
+    Write-Host "  3. Paste the dashboard token when the UI asks."
+    Write-Host "  4. Add git repos under Projects in the dashboard."
     Write-Host ""
 }
 
@@ -360,24 +637,39 @@ function Test-Health {
     if (Get-Command graphify -ErrorAction SilentlyContinue) {
         Log "graphify: $(graphify --version 2>$null)"
     } else {
-        Warn "graphify not on PATH - open a new terminal or restart Cursor"
+        Warn "graphify not on PATH - open a new terminal or restart Cursor / Claude Code"
     }
 }
 
+if ($PrepareVault) {
+    $vault = $PrepareVault -replace "^~", $env:USERPROFILE
+    Create-ObsidianVault $vault
+    $resolved = (Resolve-Path $vault).Path
+    Log "VAULT_READY $resolved"
+    exit 0
+}
+
 Log "Detecting environment (Windows)..."
+Test-Toolchain
+Test-Git
 Test-NodeVersion
 Install-Bun
 Install-Uv
-Test-Git
+Ensure-Agents
 $codeRoot = Get-CodeRoot
+Ensure-Obsidian
+Prepare-BrainVault
 $brainRoot = Get-BrainRoot
+Seed-BrainAndSkills $brainRoot
 Install-JsDeps
 Install-Graphify
 Persist-Path
 Write-AgenticConfig $codeRoot $brainRoot
 Bootstrap-Store
+Update-GraphifyRepo
 Prompt-Telegram
 Write-GraphifyPython
 Augment-CursorRule
+Open-ObsidianVault $brainRoot
 Test-Health
 Print-Success $codeRoot $brainRoot

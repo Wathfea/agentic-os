@@ -8,15 +8,23 @@ cd "$ROOT"
 PATH_MARKER="# agentic-os-path"
 GRAPHIFY_ONLY=false
 PRINT_PROJECTS_GUESS=false
+PREPARE_VAULT=""
+take_prepare=false
 
 for arg in "$@"; do
+  if [ "$take_prepare" = true ]; then
+    PREPARE_VAULT="$arg"
+    take_prepare=false
+    continue
+  fi
   case "$arg" in
     --graphify-only) GRAPHIFY_ONLY=true ;;
     --print-projects-guess) PRINT_PROJECTS_GUESS=true ;;
+    --prepare-vault) take_prepare=true ;;
   esac
 done
 
-if [ "$PRINT_PROJECTS_GUESS" = false ]; then
+if [ "$PRINT_PROJECTS_GUESS" = false ] && [ -z "$PREPARE_VAULT" ]; then
   clear 2>/dev/null || true
   cat "$SCRIPT_DIR/install-banner.txt"
 fi
@@ -113,9 +121,48 @@ version_ge() {
   [ "$(printf '%s\n%s\n' "$required" "$current" | sort -V | head -n1)" = "$required" ]
 }
 
+check_toolchain() {
+  if command -v cc >/dev/null 2>&1 || command -v cl >/dev/null 2>&1; then
+    log "C toolchain found"
+    return
+  fi
+  case "$OS" in
+    darwin)
+      warn "No C compiler — better-sqlite3 needs Xcode Command Line Tools"
+      xcode-select --install 2>/dev/null || true
+      log "Finish the Command Line Tools popup if it appears, then re-run install if bun install fails"
+      ;;
+    linux)
+      die "A C toolchain is required. Install: sudo apt install build-essential python3"
+      ;;
+    *)
+      warn "A C toolchain is required for better-sqlite3 (Visual Studio Build Tools on Windows)"
+      ;;
+  esac
+}
+
+install_node() {
+  case "$OS" in
+    darwin|linux)
+      if command -v brew >/dev/null 2>&1 && brew install node; then
+        return 0
+      fi
+      ;;
+    msys)
+      if command -v winget >/dev/null 2>&1 && winget install --exact --id OpenJS.NodeJS.LTS --accept-package-agreements --accept-source-agreements; then
+        return 0
+      fi
+      ;;
+  esac
+  return 1
+}
+
 check_node() {
   if ! command -v node >/dev/null 2>&1; then
-    die "Node.js 20+ is required. Install: https://nodejs.org/ or brew install node"
+    log "Node.js 20+ is required. Installing..."
+    if ! install_node || ! command -v node >/dev/null 2>&1; then
+      die "Node.js 20+ is required. Install: https://nodejs.org/ or brew install node"
+    fi
   fi
   local ver
   ver="$(node -p "process.versions.node")"
@@ -130,11 +177,7 @@ install_bun() {
     log "Bun $(bun --version)"
     return
   fi
-  read -r -p "  Bun not found. Install now? [Y/n] " reply
-  reply="${reply:-Y}"
-  if [[ ! "$reply" =~ ^[Yy]$ ]]; then
-    die "Bun is required for Agentic OS"
-  fi
+  log "Installing Bun..."
   curl -fsSL https://bun.sh/install | bash
   ensure_path_now
   command -v bun >/dev/null 2>&1 || die "Bun install failed"
@@ -146,11 +189,7 @@ install_uv() {
     log "uv $(uv --version 2>/dev/null | head -1)"
     return
   fi
-  read -r -p "  uv not found. Install now? [Y/n] " reply
-  reply="${reply:-Y}"
-  if [[ ! "$reply" =~ ^[Yy]$ ]]; then
-    die "uv is required for Graphify"
-  fi
+  log "Installing uv..."
   curl -LsSf https://astral.sh/uv/install.sh | sh
   ensure_path_now
   command -v uv >/dev/null 2>&1 || die "uv install failed"
@@ -160,8 +199,147 @@ install_uv() {
 check_git() {
   if command -v git >/dev/null 2>&1; then
     log "Git $(git --version)"
+    return
+  fi
+  log "Installing Git..."
+  case "$OS" in
+    darwin|linux)
+      if command -v brew >/dev/null 2>&1 && brew install git; then
+        log "Git $(git --version)"
+        return
+      fi
+      ;;
+    msys)
+      if command -v winget >/dev/null 2>&1 && winget install --exact --id Git.Git --accept-package-agreements --accept-source-agreements; then
+        log "Git installed"
+        return
+      fi
+      ;;
+  esac
+  warn "Git not found — git hooks will be skipped"
+}
+
+cursor_present() {
+  if command -v cursor >/dev/null 2>&1; then
+    return 0
+  fi
+  if [ -d "/Applications/Cursor.app" ] || [ -d "${HOME}/Applications/Cursor.app" ]; then
+    return 0
+  fi
+  if [ -x "${HOME}/Applications/Cursor.AppImage" ]; then
+    return 0
+  fi
+  return 1
+}
+
+claude_present() {
+  if command -v claude >/dev/null 2>&1; then
+    return 0
+  fi
+  if [ -x "${HOME}/.local/bin/claude" ]; then
+    return 0
+  fi
+  if [ -x "${HOME}/.claude/local/claude" ]; then
+    return 0
+  fi
+  return 1
+}
+
+install_cursor() {
+  case "$OS" in
+    darwin|linux)
+      if command -v brew >/dev/null 2>&1 && brew install --cask cursor; then
+        return 0
+      fi
+      ;;
+    msys)
+      if command -v winget >/dev/null 2>&1 && winget install --exact --id Anysphere.Cursor --accept-package-agreements --accept-source-agreements; then
+        return 0
+      fi
+      ;;
+  esac
+  return 1
+}
+
+install_claude() {
+  case "$OS" in
+    darwin)
+      if command -v brew >/dev/null 2>&1 && brew install --cask claude-code; then
+        ensure_path_now
+        return 0
+      fi
+      if command -v curl >/dev/null 2>&1 && curl -fsSL https://claude.ai/install.sh | bash; then
+        ensure_path_now
+        return 0
+      fi
+      ;;
+    linux)
+      if command -v curl >/dev/null 2>&1 && curl -fsSL https://claude.ai/install.sh | bash; then
+        ensure_path_now
+        return 0
+      fi
+      ;;
+    msys)
+      if command -v winget >/dev/null 2>&1 && winget install --exact --id Anthropic.ClaudeCode --accept-package-agreements --accept-source-agreements; then
+        ensure_path_now
+        return 0
+      fi
+      ;;
+  esac
+  return 1
+}
+
+open_url() {
+  case "$OS" in
+    darwin) open "$1" >/dev/null 2>&1 || true ;;
+    linux) xdg-open "$1" >/dev/null 2>&1 || true ;;
+    msys) cmd.exe /c start "" "$1" >/dev/null 2>&1 || true ;;
+  esac
+}
+
+ensure_agents() {
+  echo ""
+  log "Preparing Cursor and Claude Code. Skills are copied for both."
+  local have_cursor=0
+  local have_claude=0
+  if cursor_present; then
+    have_cursor=1
+    log "Cursor is already installed"
+  fi
+  if claude_present; then
+    have_claude=1
+    log "Claude Code is already installed"
+  fi
+  if [ "$have_cursor" -eq 1 ] || [ "$have_claude" -eq 1 ]; then
+    return
+  fi
+  if [ ! -t 0 ]; then
+    warn "No coding agent found (non-interactive). Install Cursor (https://cursor.com/download) or Claude Code (https://code.claude.com/docs/en/overview)"
+    return
+  fi
+  log "Installing Cursor..."
+  if install_cursor && cursor_present; then
+    have_cursor=1
+    log "Cursor installed"
+  fi
+  log "Installing Claude Code..."
+  if install_claude && claude_present; then
+    have_claude=1
+    log "Claude Code installed"
+  fi
+  if [ "$have_cursor" -eq 1 ] || [ "$have_claude" -eq 1 ]; then
+    return
+  fi
+  log "Install Cursor from https://cursor.com/download or Claude Code from https://code.claude.com/docs/en/overview"
+  open_url "https://cursor.com/download"
+  open_url "https://code.claude.com/docs/en/overview"
+  read -r -p "  Press Enter when Cursor or Claude Code is installed (or continue without them) "
+  if cursor_present; then
+    log "Cursor is installed"
+  elif claude_present; then
+    log "Claude Code is installed"
   else
-    warn "Git not found — git hooks will be skipped"
+    warn "No coding agent detected — skills will still be copied to ~/.cursor/skills and ~/.claude/skills"
   fi
 }
 
@@ -232,13 +410,161 @@ prompt_code_root() {
   log "Projects root: $CODE_ROOT"
 }
 
+default_brain_root() {
+  if [ -n "${AGENTIC_BRAIN_DIR:-}" ]; then
+    expand_user_path "$AGENTIC_BRAIN_DIR"
+  else
+    printf '%s' "${HOME}/SecondBrain/Second Brain"
+  fi
+}
+
+create_obsidian_vault() {
+  local vault="$1"
+  if [ -z "$vault" ]; then
+    die "Vault path is required"
+  fi
+  mkdir -p "${vault}/.obsidian"
+}
+
+obsidian_present() {
+  if command -v obsidian >/dev/null 2>&1; then
+    return 0
+  fi
+  if [ -d "/Applications/Obsidian.app" ] || [ -d "${HOME}/Applications/Obsidian.app" ]; then
+    return 0
+  fi
+  if [ -x "${HOME}/Applications/Obsidian.AppImage" ]; then
+    return 0
+  fi
+  if command -v flatpak >/dev/null 2>&1; then
+    if flatpak info md.obsidian.Obsidian >/dev/null 2>&1; then
+      return 0
+    fi
+    if flatpak info --user md.obsidian.Obsidian >/dev/null 2>&1; then
+      return 0
+    fi
+  fi
+  return 1
+}
+
+obsidian_install_available() {
+  case "$OS" in
+    darwin)
+      command -v brew >/dev/null 2>&1
+      ;;
+    linux)
+      command -v brew >/dev/null 2>&1 || command -v flatpak >/dev/null 2>&1
+      ;;
+    msys)
+      command -v winget >/dev/null 2>&1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+install_obsidian() {
+  case "$OS" in
+    darwin)
+      if command -v brew >/dev/null 2>&1 && brew install --cask obsidian; then
+        return 0
+      fi
+      ;;
+    linux)
+      if command -v brew >/dev/null 2>&1 && brew install --cask obsidian; then
+        return 0
+      fi
+      if command -v flatpak >/dev/null 2>&1; then
+        flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo >/dev/null 2>&1 || true
+        if flatpak install --user -y flathub md.obsidian.Obsidian; then
+          return 0
+        fi
+      fi
+      ;;
+    msys)
+      if command -v winget >/dev/null 2>&1 && winget install --exact --id Obsidian.Obsidian --accept-package-agreements --accept-source-agreements; then
+        return 0
+      fi
+      ;;
+  esac
+  return 1
+}
+
+print_obsidian_howto() {
+  local location="${HOME}/SecondBrain"
+  echo ""
+  log "Install Obsidian from https://obsidian.md/download"
+  log "Create a vault (a folder of markdown files):"
+  log "  1. Open Obsidian"
+  log "  2. Create new vault"
+  log "     Name: Second Brain"
+  log "     Location: ${location}"
+  log "  Or: vault icon -> Manage vaults... -> Open folder as vault"
+  log "     and pick the folder this installer creates."
+}
+
+open_obsidian_download() {
+  case "$OS" in
+    darwin) open "https://obsidian.md/download" >/dev/null 2>&1 || true ;;
+    linux) xdg-open "https://obsidian.md/download" >/dev/null 2>&1 || true ;;
+    msys) cmd.exe /c start "" "https://obsidian.md/download" >/dev/null 2>&1 || true ;;
+  esac
+}
+
+ensure_obsidian() {
+  echo ""
+  log "Obsidian is the app that opens your Second Brain vault."
+  if obsidian_present; then
+    log "Obsidian is already installed"
+    return
+  fi
+  if [ ! -t 0 ]; then
+    if obsidian_install_available && install_obsidian && obsidian_present; then
+      log "Obsidian installed"
+      return
+    fi
+    warn "Obsidian not found (non-interactive). Install from https://obsidian.md/download"
+    return
+  fi
+  if obsidian_install_available; then
+    log "Installing Obsidian..."
+    if install_obsidian && obsidian_present; then
+      log "Obsidian installed"
+      return
+    fi
+    warn "Obsidian install did not finish — follow the steps below"
+  fi
+  print_obsidian_howto
+  open_obsidian_download
+  read -r -p "  Press Enter when Obsidian is installed (or continue without it) "
+  if obsidian_present; then
+    log "Obsidian is installed"
+  else
+    warn "Obsidian not detected — the vault folder will still work as markdown"
+  fi
+}
+
+prepare_brain_vault() {
+  local vault
+  vault="$(default_brain_root)"
+  echo ""
+  log "A vault is a folder Obsidian opens. Preparing:"
+  log "  $vault"
+  create_obsidian_vault "$vault"
+  log "Vault folder ready."
+  log "In Obsidian: vault icon -> Manage vaults... -> Open folder as vault"
+  log "  and choose that folder if it is not already listed."
+}
+
 prompt_brain_root() {
-  local default="${HOME}/SecondBrain/Second Brain"
-  local input
+  local default input
+  default="$(default_brain_root)"
   echo ""
   if [ -n "${AGENTIC_BRAIN_DIR:-}" ]; then
     input="$(expand_user_path "$AGENTIC_BRAIN_DIR")"
     ensure_dir "$input" "Vault directory"
+    create_obsidian_vault "$input"
     BRAIN_ROOT="$(cd "$input" && pwd)"
     log "Vault: $BRAIN_ROOT (AGENTIC_BRAIN_DIR)"
     return
@@ -246,8 +572,47 @@ prompt_brain_root() {
   read -r -p "  Where is your Second Brain vault? [${default}] " input
   input="$(expand_user_path "${input:-$default}")"
   ensure_dir "$input" "Vault directory"
+  create_obsidian_vault "$input"
   BRAIN_ROOT="$(cd "$input" && pwd)"
   log "Vault: $BRAIN_ROOT"
+}
+
+seed_brain_and_skills() {
+  log "Seeding Second Brain vault and syncing Cursor and Claude Code skills..."
+  node "$ROOT/scripts/install-bootstrap.mjs" --vault "$BRAIN_ROOT"
+}
+
+open_obsidian_vault() {
+  if ! obsidian_present; then
+    return
+  fi
+  local encoded
+  encoded="$(node -e "process.stdout.write(encodeURIComponent(process.argv[1]))" "$BRAIN_ROOT")"
+  local uri="obsidian://open?path=${encoded}"
+  case "$OS" in
+    darwin) open "$uri" >/dev/null 2>&1 || open -a Obsidian "$BRAIN_ROOT" >/dev/null 2>&1 || true ;;
+    linux)
+      if command -v flatpak >/dev/null 2>&1 && flatpak info --user md.obsidian.Obsidian >/dev/null 2>&1; then
+        flatpak run md.obsidian.Obsidian "$uri" >/dev/null 2>&1 || true
+      elif command -v xdg-open >/dev/null 2>&1; then
+        xdg-open "$uri" >/dev/null 2>&1 || true
+      elif command -v obsidian >/dev/null 2>&1; then
+        obsidian "$uri" >/dev/null 2>&1 || true
+      fi
+      ;;
+    msys) cmd.exe /c start "" "$uri" >/dev/null 2>&1 || true ;;
+  esac
+  log "Opened vault in Obsidian (Manage vaults -> Open folder as vault if it did not appear)"
+}
+
+update_graphify_repo() {
+  echo ""
+  log "Building the Graphify graph for this Agentic OS clone..."
+  if graphify update .; then
+    log "Graphify graph ready"
+  else
+    warn "graphify update failed — run it later from this repo"
+  fi
 }
 
 write_agentic_config() {
@@ -303,8 +668,10 @@ install_graphify() {
   uv tool install --upgrade graphifyy
   ensure_path_now
   command -v graphify >/dev/null 2>&1 || die "graphify not found after uv tool install"
-  graphify install
-  graphify cursor install --project
+  graphify install --platform cursor || true
+  graphify install --platform claude || true
+  graphify install --project --platform cursor || true
+  graphify install --project --platform claude || true
   log "Graphify $(graphify --version)"
 }
 
@@ -360,8 +727,8 @@ prompt_telegram() {
       return
     fi
   else
-    read -r -p "  Set up Telegram now? [Y/n] " reply
-    reply="${reply:-Y}"
+    read -r -p "  Set up Telegram now? [y/N] " reply
+    reply="${reply:-N}"
     if [[ ! "$reply" =~ ^[Yy]$ ]]; then
       log "Telegram skipped — set it up later in the dashboard Routines panel"
       return
@@ -448,9 +815,13 @@ print_success() {
   echo "  Telegram:   ${telegram_status}"
   echo "  Projects:   ${CODE_ROOT:-$(node -e "try{console.log(JSON.parse(require('fs').readFileSync('store/agentic.config.json','utf8')).codeRoot)}catch{}")}"
   echo "  Vault:      ${BRAIN_ROOT:-$(node -e "try{console.log(JSON.parse(require('fs').readFileSync('store/agentic.config.json','utf8')).brainRoot)}catch{}")}"
+  echo "  Skills:     ${HOME}/.cursor/skills"
+  echo "              ${HOME}/.claude/skills"
   echo ""
-  echo "  Start:      bun run dev"
-  echo "  Restart Cursor so agents can run graphify query."
+  echo "  1. bun run dev"
+  echo "  2. Open this repo in Cursor (fully restart) or run: claude"
+  echo "  3. Paste the dashboard token when the UI asks."
+  echo "  4. Add git repos under Projects in the dashboard."
   echo ""
 }
 
@@ -459,11 +830,19 @@ health_check() {
   if command -v graphify >/dev/null 2>&1; then
     log "graphify: $(graphify --version 2>/dev/null || echo ok)"
   else
-    warn "graphify not on PATH — open a new terminal or restart Cursor"
+    warn "graphify not on PATH — open a new terminal or restart Cursor / Claude Code"
   fi
 }
 
 detect_os
+
+if [ -n "$PREPARE_VAULT" ]; then
+  vault="$(expand_user_path "$PREPARE_VAULT")"
+  create_obsidian_vault "$vault"
+  vault="$(cd "$vault" && pwd)"
+  log "VAULT_READY $vault"
+  exit 0
+fi
 
 if [ "$PRINT_PROJECTS_GUESS" = true ]; then
   guess_projects_root
@@ -481,19 +860,26 @@ if [ "$GRAPHIFY_ONLY" = true ]; then
 fi
 
 log "Detecting environment ($OS)..."
+check_toolchain
+check_git
 check_node
 install_bun
 install_uv
-check_git
+ensure_agents
 prompt_code_root
+ensure_obsidian
+prepare_brain_vault
 prompt_brain_root
+seed_brain_and_skills
 install_js_deps
 install_graphify
 persist_path
 write_agentic_config
 bootstrap_store
+update_graphify_repo
 prompt_telegram
 write_graphify_python
 augment_cursor_rule
+open_obsidian_vault
 health_check
 print_success

@@ -8,5 +8,6 @@ store/*
 .DS_Store
 *.local
 .superpowers/
+.tmp-agentic-*
 # agentic-os-graphify
 graphify-out/

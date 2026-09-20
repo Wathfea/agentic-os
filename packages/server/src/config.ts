@@ -10,6 +10,7 @@ export const PROJECTS_STORE_DIR = join(STORE_DIR, 'projects')
 export const BUILD_TMP_DIR = join(STORE_DIR, 'tmp')
 export const SEED_SKILLS_DIR = join(AGENTIC_ROOT, 'seed-skills')
 export const GLOBAL_SKILLS_DIR = join(homedir(), '.cursor', 'skills')
+export const CLAUDE_SKILLS_DIR = join(homedir(), '.claude', 'skills')
 export const GLOBAL_GRAPH_PATH = join(homedir(), '.graphify', 'global-graph.json')
 export const PORT = Number(process.env.AGENTIC_PORT ?? 3847)
 export const GRAPHIFY_BIN = process.env.GRAPHIFY_BIN ?? 'graphify'
