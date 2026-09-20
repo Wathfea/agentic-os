@@ -11,6 +11,7 @@ Set-Location $Root
 
 $PathMarker = "# agentic-os-path"
 $CodingAgent = ""
+$script:ObsidianVaultManual = $false
 
 try { Clear-Host } catch {}
 
@@ -296,6 +297,7 @@ function Get-DefaultBrainRoot {
 
 function Create-ObsidianVault($vault) {
     if (-not $vault) { Die "Vault path is required" }
+    if ($script:ObsidianVaultManual -or $env:OBSIDIAN_VAULT_MANUAL -eq "1") { return }
     New-Item -ItemType Directory -Path (Join-Path $vault ".obsidian") -Force | Out-Null
 }
 
@@ -327,6 +329,7 @@ function Install-ObsidianApp {
 
 function Show-ObsidianHowto {
     $location = Join-Path $env:USERPROFILE "SecondBrain"
+    $script:ObsidianVaultManual = $true
     Write-Host ""
     Log "Install Obsidian from https://obsidian.md/download"
     Log "Create a vault (a folder of markdown files):"
@@ -335,7 +338,6 @@ function Show-ObsidianHowto {
     Log "     Name: Second Brain"
     Log "     Location: $location"
     Log "  Or: vault icon -> Manage vaults... -> Open folder as vault"
-    Log "     and pick the folder this installer creates."
 }
 
 function Open-ObsidianDownload {
@@ -367,7 +369,7 @@ function Ensure-Obsidian {
     }
     Show-ObsidianHowto
     Open-ObsidianDownload
-    Read-Host "  Press Enter when Obsidian is installed (or continue without it)" | Out-Null
+    Read-Host "  Press Enter when Obsidian is installed and the vault is created (or continue without it)" | Out-Null
     if (Test-ObsidianInstalled) {
         Log "Obsidian is installed"
     } else {
@@ -378,6 +380,11 @@ function Ensure-Obsidian {
 function Prepare-BrainVault {
     $vault = Get-DefaultBrainRoot
     Write-Host ""
+    if ($script:ObsidianVaultManual -or $env:OBSIDIAN_VAULT_MANUAL -eq "1") {
+        Log "You were asked to create the vault in Obsidian. Not creating one automatically."
+        Log "  Suggested path: $vault"
+        return
+    }
     Log "A vault is a folder Obsidian opens. Preparing:"
     Log "  $vault"
     Create-ObsidianVault $vault
@@ -693,7 +700,14 @@ function Test-Health {
 
 if ($PrepareVault) {
     $vault = $PrepareVault -replace "^~", $env:USERPROFILE
+    if ($env:OBSIDIAN_VAULT_MANUAL -eq "1") {
+        $script:ObsidianVaultManual = $true
+    }
     Create-ObsidianVault $vault
+    if ($script:ObsidianVaultManual) {
+        Log "VAULT_SKIPPED"
+        exit 0
+    }
     $resolved = (Resolve-Path $vault).Path
     Log "VAULT_READY $resolved"
     exit 0

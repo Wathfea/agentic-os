@@ -22,6 +22,21 @@ describe('install Obsidian vault setup', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
+  it('does not auto-create a vault when the user was told to create one in Obsidian', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'agentic-vault-manual-'))
+    const vault = join(dir, 'Second Brain')
+    const result = spawnSync('bash', [installSh, '--prepare-vault', vault], {
+      encoding: 'utf8',
+      env: { ...process.env, OBSIDIAN_VAULT_MANUAL: '1' },
+    })
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('VAULT_SKIPPED')
+    expect(result.stdout).not.toContain('VAULT_READY')
+    expect(existsSync(join(vault, '.obsidian'))).toBe(false)
+    expect(existsSync(vault)).toBe(false)
+    rmSync(dir, { recursive: true, force: true })
+  })
+
   it('installs or guides Obsidian before asking for the vault path', () => {
     const sh = readFileSync(installSh, 'utf8')
     const main = sh.split('log "Detecting environment ($OS)..."')[1]
@@ -33,6 +48,11 @@ describe('install Obsidian vault setup', () => {
     expect(sh).toContain('https://obsidian.md/download')
     expect(sh).toContain('Create new vault')
     expect(sh).toContain('Open folder as vault')
+    const howto = sh.slice(sh.indexOf('print_obsidian_howto() {'), sh.indexOf('open_obsidian_download() {'))
+    expect(howto).toContain('OBSIDIAN_VAULT_MANUAL=1')
+    expect(howto).not.toContain('this installer creates')
+    const prepare = sh.slice(sh.indexOf('prepare_brain_vault() {'), sh.indexOf('prompt_brain_root() {'))
+    expect(prepare).toContain('OBSIDIAN_VAULT_MANUAL')
   })
 
   it('keeps the Windows installer on the same Obsidian-then-vault order', () => {
@@ -46,6 +66,11 @@ describe('install Obsidian vault setup', () => {
     expect(ps).toContain('https://obsidian.md/download')
     expect(ps).toContain('Create new vault')
     expect(ps).toContain('Open folder as vault')
+    const howto = ps.slice(ps.indexOf('function Show-ObsidianHowto'), ps.indexOf('function Open-ObsidianDownload'))
+    expect(howto).toContain('ObsidianVaultManual')
+    expect(howto).not.toContain('this installer creates')
+    const prepare = ps.slice(ps.indexOf('function Prepare-BrainVault'), ps.indexOf('function Get-BrainRoot'))
+    expect(prepare).toContain('ObsidianVaultManual')
   })
 })
 

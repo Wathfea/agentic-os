@@ -466,6 +466,9 @@ create_obsidian_vault() {
   if [ -z "$vault" ]; then
     die "Vault path is required"
   fi
+  if [ "${OBSIDIAN_VAULT_MANUAL:-}" = "1" ]; then
+    return 0
+  fi
   mkdir -p "${vault}/.obsidian"
 }
 
@@ -536,6 +539,7 @@ install_obsidian() {
 
 print_obsidian_howto() {
   local location="${HOME}/SecondBrain"
+  OBSIDIAN_VAULT_MANUAL=1
   echo ""
   log "Install Obsidian from https://obsidian.md/download"
   log "Create a vault (a folder of markdown files):"
@@ -544,7 +548,6 @@ print_obsidian_howto() {
   log "     Name: Second Brain"
   log "     Location: ${location}"
   log "  Or: vault icon -> Manage vaults... -> Open folder as vault"
-  log "     and pick the folder this installer creates."
 }
 
 open_obsidian_download() {
@@ -580,7 +583,7 @@ ensure_obsidian() {
   fi
   print_obsidian_howto
   open_obsidian_download
-  read -r -p "  Press Enter when Obsidian is installed (or continue without it) "
+  read -r -p "  Press Enter when Obsidian is installed and the vault is created (or continue without it) "
   if obsidian_present; then
     log "Obsidian is installed"
   else
@@ -592,6 +595,11 @@ prepare_brain_vault() {
   local vault
   vault="$(default_brain_root)"
   echo ""
+  if [ "${OBSIDIAN_VAULT_MANUAL:-}" = "1" ]; then
+    log "You were asked to create the vault in Obsidian — not creating one automatically."
+    log "  Suggested path: $vault"
+    return
+  fi
   log "A vault is a folder Obsidian opens. Preparing:"
   log "  $vault"
   create_obsidian_vault "$vault"
@@ -902,6 +910,10 @@ detect_os
 if [ -n "$PREPARE_VAULT" ]; then
   vault="$(expand_user_path "$PREPARE_VAULT")"
   create_obsidian_vault "$vault"
+  if [ "${OBSIDIAN_VAULT_MANUAL:-}" = "1" ]; then
+    log "VAULT_SKIPPED"
+    exit 0
+  fi
   vault="$(cd "$vault" && pwd)"
   log "VAULT_READY $vault"
   exit 0
