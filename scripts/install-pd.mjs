@@ -426,10 +426,11 @@ async function main() {
 
   if (!pdRoot) die('pd path is required')
   if (!existsSync(pdRoot)) die(`pd path does not exist: ${pdRoot}`)
-  if (!looksLikePd(pdRoot)) {
-    warn(`This does not look like the pd monorepo: ${pdRoot}`)
-    if (interactive) die('Aborting. Pass the folder that contains apps/book_service.')
-  }
+  // TEMP: skip pd-repo shape check so install can be simulated in an empty folder
+  // if (!looksLikePd(pdRoot)) {
+  //   warn(`This does not look like the pd monorepo: ${pdRoot}`)
+  //   if (interactive) die('Aborting. Pass the folder that contains apps/book_service.')
+  // }
   if (!agent) die('Choose cursor or claude')
 
   const files = filesFromArchive()
