@@ -9,5 +9,6 @@ store/*
 *.local
 .superpowers/
 .tmp-agentic-*
+.tmp-pd-install-*
 # agentic-os-graphify
 graphify-out/

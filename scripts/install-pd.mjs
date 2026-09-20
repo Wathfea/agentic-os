@@ -5,13 +5,14 @@ import { stdin as input, stdout as output } from 'node:process'
 import {
   existsSync,
   mkdirSync,
+  readdirSync,
   readFileSync,
   writeFileSync,
   chmodSync,
   copyFileSync,
 } from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { gunzipSync } from 'node:zlib'
 
@@ -313,18 +314,67 @@ function today() {
   return new Date().toISOString().slice(0, 10)
 }
 
+const INDEX_SECTIONS = [
+  {
+    marker: '## Overview',
+    heading: '## Overview',
+    links: ['- [[overview]] - pd, task-loop, and LLM-wiki map'],
+  },
+  {
+    marker: '## Sources',
+    heading: '## Sources',
+    links: [
+      '- [[task-loop-skill]] - Cursor skill snapshot defining the task-loop sequence',
+      '- [[what-is-loop-engineering]] - Kilo article defining loop engineering for AI coding agents',
+      '- [[karpathy-llm-wiki]] - MindStudio article on Karpathy\'s LLM-wiki pattern',
+      '- [[graphify-knowledge-graph-from-codebase]] - GoPenAI article on Graphify: local-first codebase knowledge graph vs RAG',
+    ],
+  },
+  {
+    marker: '## Entities',
+    heading: '## Entities',
+    links: [
+      '- [[publishdrive-pd]] - PublishDrive platform (primary day-to-day work)',
+      '- [[graphify]] - local-first codebase knowledge-graph tool',
+      '- [[andrej-karpathy]] - AI researcher; originator of the LLM-wiki pattern',
+    ],
+  },
+  {
+    marker: '## Concepts',
+    heading: '## Concepts',
+    links: [
+      '- [[book-manager]] - BookManager domain in pd (validation, DTOs, rules YAML, withdraw vs delete)',
+      '- [[loop-engineering]] - designing plan-act-observe-adjust feedback loops around AI coding agents',
+      '- [[task-loop]] - project-agnostic Intent-Act-Verify spine for any prompted work (`ticket-loop` alias)',
+      '- [[llm-wiki]] - personal knowledge base as LLM-readable markdown',
+      '- [[knowledge-graph]] - graph-traversal retrieval for codebases vs embedding-based RAG',
+    ],
+  },
+  {
+    marker: '## Projects (dev wiki',
+    heading: '## Projects (dev wiki — hand-edited)',
+    links: [
+      '- [[pd/overview]] - pd monorepo, stack, Jira workflow',
+      '- [[pd/glossary]] - pd domain language',
+      '- [[pd/distribution-api]] - public `/v2/distribution` book API; withdraw a book via unpublish',
+      '- [[pd/gotchas]] - reusable pd lessons from tickets',
+      '- [[pd/conventions]] - PHP class/layer naming (Service, Repository, DTO)',
+      '- [[pd/subsystems]] - entry symbols for graphify triage',
+      '- [[pd/ticket-checklist]] - per-ticket graphify + compound workflow',
+      '- [[book-manager]] - BookManager domain in pd (validation, DTOs, rules YAML, withdraw vs delete)',
+    ],
+  },
+]
+
+function missingIndexLinks(content, links) {
+  return links.filter((line) => {
+    const key = line.match(/\[\[([^\]]+)\]\]/)[1]
+    return !content.includes(`[[${key}]]`) && !content.includes(`[[${key}|`)
+  })
+}
+
 function ensureIndex(brainRoot) {
   const indexPath = join(brainRoot, 'index.md')
-  const links = [
-    '- [[pd/overview]] - pd monorepo, stack, Jira workflow',
-    '- [[pd/glossary]] - pd domain language',
-    '- [[pd/distribution-api]] - public `/v2/distribution` book API; withdraw a book via unpublish',
-    '- [[pd/gotchas]] - reusable pd lessons from tickets',
-    '- [[pd/conventions]] - PHP class/layer naming (Service, Repository, DTO)',
-    '- [[pd/subsystems]] - entry symbols for graphify triage',
-    '- [[pd/ticket-checklist]] - per-ticket graphify + compound workflow',
-    '- [[book-manager]] - BookManager domain in pd (validation, DTOs, rules YAML, withdraw vs delete)',
-  ]
   if (!existsSync(indexPath)) {
     writeText(
       indexPath,
@@ -335,29 +385,52 @@ updated: ${today()}
 
 # Index
 
-## Projects (dev wiki — hand-edited)
-
-${links.join('\n')}
+${INDEX_SECTIONS.map((s) => `${s.heading}\n\n${s.links.join('\n')}`).join('\n\n')}
 `,
     )
     return
   }
   let content = readFileSync(indexPath, 'utf8')
-  const missing = links.filter((line) => {
-    const key = line.match(/\[\[([^\]]+)\]\]/)[1]
-    return !content.includes(`[[${key}]]`) && !content.includes(`[[${key}|`)
-  })
-  if (missing.length === 0) return
-  const marker = '## Projects (dev wiki'
-  const idx = content.indexOf(marker)
-  if (idx === -1) {
-    content = `${content.trimEnd()}\n\n## Projects (dev wiki — hand-edited)\n\n${missing.join('\n')}\n`
-  } else {
-    const next = content.indexOf('\n## ', idx + marker.length)
+  for (const section of INDEX_SECTIONS) {
+    const missing = missingIndexLinks(content, section.links)
+    if (missing.length === 0) continue
+    const idx = content.indexOf(section.marker)
+    if (idx === -1) {
+      content = `${content.trimEnd()}\n\n${section.heading}\n\n${missing.join('\n')}\n`
+      continue
+    }
+    const next = content.indexOf('\n## ', idx + section.marker.length)
     const insertAt = next === -1 ? content.length : next
     content = `${content.slice(0, insertAt).trimEnd()}\n${missing.join('\n')}\n${content.slice(insertAt)}`
   }
   writeFileSync(indexPath, content)
+}
+
+function walkFiles(dir, acc = []) {
+  if (!existsSync(dir)) return acc
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) walkFiles(path, acc)
+    else acc.push(path)
+  }
+  return acc
+}
+
+function preserveVaultPath(rel) {
+  return rel === 'AGENTS.md' || rel === 'wiki/overview.md' || rel.startsWith('raw/')
+}
+
+function installVaultSeed(agent, pdRoot, brainRoot) {
+  const seedRoot = join(AGENTIC_ROOT, 'templates', 'pd-vault')
+  let written = 0
+  for (const abs of walkFiles(seedRoot)) {
+    const rel = relative(seedRoot, abs).split('\\').join('/')
+    const dest = join(brainRoot, rel)
+    if (preserveVaultPath(rel) && existsSync(dest)) continue
+    writeText(dest, rewritePaths(readFileSync(abs, 'utf8'), agent, pdRoot, brainRoot))
+    written++
+  }
+  return written
 }
 
 function appendLog(brainRoot) {
@@ -378,6 +451,7 @@ function installWiki(files, agent, pdRoot, brainRoot) {
     writeText(dest, rewritePaths(raw, agent, pdRoot, brainRoot))
     pages++
   }
+  pages += installVaultSeed(agent, pdRoot, brainRoot)
   ensureIndex(brainRoot)
   appendLog(brainRoot)
   return pages
@@ -442,7 +516,7 @@ async function main() {
   log(`Vault:      ${brainRoot}`)
   log(`Skills:     ${overlay.skills} files → ${agent === 'claude' ? '.claude/skills' : '.cursor/skills'}`)
   log(`Rules:      ${overlay.rules} files → ${agent === 'claude' ? '.claude/rules' : '.cursor/rules'}`)
-  log(`Wiki pages: ${pages} → wiki/projects/pd + wiki/concepts/book-manager.md`)
+  log(`Wiki pages: ${pages} → wiki/projects/pd + task-loop / LLM-wiki / Graphify`)
   log('Done. Restart Cursor / Claude Code so the overlay loads.')
 }
 
