@@ -11,10 +11,10 @@ License: MIT. Clone this repo anywhere — it does not have to live next to your
   - macOS: `xcode-select --install`
   - Linux: `sudo apt install build-essential python3` (or the equivalent on your distro)
   - Windows: Visual Studio Build Tools with the Desktop C++ workload, plus Git for Windows (`git` and `sh` for graphify hooks)
-- Cursor or Claude Code (skills are copied for both)
+- Cursor or Claude Code (the installer asks which you use, then locates or installs that one)
 - Obsidian (the installer can install it, or walk you through creating a vault)
 
-The installer can install Node.js, Git, Bun, uv, Graphify, Obsidian, Cursor, and Claude Code when a package manager is available (Homebrew, winget, or Flatpak). It seeds an empty Second Brain vault, copies `seed-skills/` to `~/.cursor/skills` and `~/.claude/skills`, writes a Claude project overlay (`CLAUDE.md`, `.claude/rules`), and builds the Graphify graph for this clone.
+The installer can install Node.js, Git, Bun, uv, Graphify, Obsidian, and the coding agent you choose (Cursor or Claude Code) when a package manager is available (Homebrew, winget, or Flatpak). It seeds an empty Second Brain vault, copies `seed-skills/` to `~/.cursor/skills` and `~/.claude/skills`, writes a Claude project overlay (`CLAUDE.md`, `.claude/rules`), and builds the Graphify graph for this clone.
 
 A coworker should be able to clone and run the installer, then `bun run dev` plus a Cursor restart or `claude` in this folder.
 
@@ -48,14 +48,14 @@ The script asks where the pd repo is, whether to install for Cursor or Claude Co
 
 The installer:
 
-1. Checks a C toolchain (Xcode CLT / build-essential / VS Build Tools)
-2. Installs missing Node.js 20+, Git, Bun, uv, Obsidian, and Cursor or Claude Code when it can
+1. Checks a C toolchain (Xcode CLT / build-essential / VS Build Tools) and installs missing Node.js 20+, Git, Bun, and uv
+2. Asks whether you use Cursor or Claude Code, then locates that app and installs it if missing
 3. Asks where your git projects live (not this clone)
-4. Creates a Second Brain vault (default `~/SecondBrain/Second Brain`), writes `AGENTS.md` / `index.md` / wiki folders, copies skills to `~/.cursor/skills` and `~/.claude/skills`, and writes `CLAUDE.md` plus `.claude/rules`
+4. Installs Obsidian if needed, creates a Second Brain vault (default `~/SecondBrain/Second Brain`), writes `AGENTS.md` / `index.md` / wiki folders, copies skills to `~/.cursor/skills` and `~/.claude/skills`, and writes `CLAUDE.md` plus `.claude/rules`
 5. Installs JavaScript dependencies and Graphify, then runs `graphify update .` on this clone
 6. Optionally opens the vault in Obsidian and asks about Telegram delivery (skippable)
 
-If `AGENTIC_CODE_ROOT` or `AGENTIC_BRAIN_DIR` is set, those values are used and the matching prompt is skipped. Google OAuth is configured later in the dashboard. The pd overlay is a separate step (`bun run install:pd`).
+If `AGENTIC_CODE_ROOT`, `AGENTIC_BRAIN_DIR`, or `AGENTIC_AGENT` (`cursor` or `claude`) is set, those values are used and the matching prompt is skipped. Same for `bash scripts/install.sh --agent claude`. Google OAuth is configured later in the dashboard. The pd overlay is a separate step (`bun run install:pd`).
 
 It also adds tool paths to your shell profile, mints `store/.dashboard-token`, and can save a Telegram connection for Morning mix delivery.
 

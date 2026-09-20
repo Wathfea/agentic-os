@@ -9,7 +9,10 @@ PATH_MARKER="# agentic-os-path"
 GRAPHIFY_ONLY=false
 PRINT_PROJECTS_GUESS=false
 PREPARE_VAULT=""
+AGENT=""
+AGENT_FLAG=""
 take_prepare=false
+take_agent=false
 
 for arg in "$@"; do
   if [ "$take_prepare" = true ]; then
@@ -17,10 +20,17 @@ for arg in "$@"; do
     take_prepare=false
     continue
   fi
+  if [ "$take_agent" = true ]; then
+    AGENT_FLAG="$arg"
+    take_agent=false
+    continue
+  fi
   case "$arg" in
     --graphify-only) GRAPHIFY_ONLY=true ;;
     --print-projects-guess) PRINT_PROJECTS_GUESS=true ;;
     --prepare-vault) take_prepare=true ;;
+    --agent) take_agent=true ;;
+    --agent=*) AGENT_FLAG="${arg#--agent=}" ;;
   esac
 done
 
@@ -297,50 +307,83 @@ open_url() {
   esac
 }
 
-ensure_agents() {
-  echo ""
-  log "Preparing Cursor and Claude Code. Skills are copied for both."
-  local have_cursor=0
-  local have_claude=0
-  if cursor_present; then
-    have_cursor=1
-    log "Cursor is already installed"
+normalize_agent() {
+  local raw
+  raw="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')"
+  case "$raw" in
+    1|c|cursor) printf 'cursor' ;;
+    2|a|claude|claudecode|claude-code|anthropic) printf 'claude' ;;
+  esac
+}
+
+prompt_agent() {
+  local raw=""
+  if [ -n "${AGENTIC_AGENT:-}" ]; then
+    raw="$AGENTIC_AGENT"
+  elif [ -n "$AGENT_FLAG" ]; then
+    raw="$AGENT_FLAG"
   fi
-  if claude_present; then
-    have_claude=1
-    log "Claude Code is already installed"
-  fi
-  if [ "$have_cursor" -eq 1 ] || [ "$have_claude" -eq 1 ]; then
+  if [ -n "$raw" ]; then
+    AGENT="$(normalize_agent "$raw")"
+    if [ -z "$AGENT" ]; then
+      die "AGENTIC_AGENT must be cursor or claude"
+    fi
+    log "Coding agent: $AGENT"
     return
   fi
   if [ ! -t 0 ]; then
-    warn "No coding agent found (non-interactive). Install Cursor (https://cursor.com/download) or Claude Code (https://code.claude.com/docs/en/overview)"
+    warn "Set AGENTIC_AGENT=cursor or AGENTIC_AGENT=claude (non-interactive)"
+    AGENT=""
     return
   fi
-  log "Installing Cursor..."
-  if install_cursor && cursor_present; then
-    have_cursor=1
-    log "Cursor installed"
-  fi
-  log "Installing Claude Code..."
-  if install_claude && claude_present; then
-    have_claude=1
-    log "Claude Code installed"
-  fi
-  if [ "$have_cursor" -eq 1 ] || [ "$have_claude" -eq 1 ]; then
+  echo ""
+  log "Which coding agent do you use?"
+  log "  1) Cursor"
+  log "  2) Claude Code"
+  while [ -z "$AGENT" ]; do
+    read -r -p "  [1/2] " raw
+    AGENT="$(normalize_agent "$raw")"
+    if [ -z "$AGENT" ]; then
+      warn "Choose 1 (Cursor) or 2 (Claude Code)"
+    fi
+  done
+  log "Coding agent: $AGENT"
+}
+
+ensure_one_agent() {
+  local name="$1"
+  local present_fn="$2"
+  local install_fn="$3"
+  local url="$4"
+  if "$present_fn"; then
+    log "$name is already installed"
     return
   fi
-  log "Install Cursor from https://cursor.com/download or Claude Code from https://code.claude.com/docs/en/overview"
-  open_url "https://cursor.com/download"
-  open_url "https://code.claude.com/docs/en/overview"
-  read -r -p "  Press Enter when Cursor or Claude Code is installed (or continue without them) "
-  if cursor_present; then
-    log "Cursor is installed"
-  elif claude_present; then
-    log "Claude Code is installed"
+  if [ ! -t 0 ]; then
+    warn "$name not found (non-interactive). Install from $url"
+    return
+  fi
+  log "Installing $name..."
+  if "$install_fn" && "$present_fn"; then
+    log "$name installed"
+    return
+  fi
+  log "Install $name from $url"
+  open_url "$url"
+  read -r -p "  Press Enter when $name is installed (or continue without it) "
+  if "$present_fn"; then
+    log "$name is installed"
   else
-    warn "No coding agent detected — skills will still be copied to ~/.cursor/skills and ~/.claude/skills"
+    warn "$name not detected — skills will still be copied"
   fi
+}
+
+ensure_agents() {
+  prompt_agent
+  case "$AGENT" in
+    cursor) ensure_one_agent "Cursor" cursor_present install_cursor "https://cursor.com/download" ;;
+    claude) ensure_one_agent "Claude Code" claude_present install_claude "https://code.claude.com/docs/en/overview" ;;
+  esac
 }
 
 expand_user_path() {
@@ -668,10 +711,22 @@ install_graphify() {
   uv tool install --upgrade graphifyy
   ensure_path_now
   command -v graphify >/dev/null 2>&1 || die "graphify not found after uv tool install"
-  graphify install --platform cursor || true
-  graphify install --platform claude || true
-  graphify install --project --platform cursor || true
-  graphify install --project --platform claude || true
+  case "$AGENT" in
+    claude)
+      graphify install --platform claude || true
+      graphify install --project --platform claude || true
+      ;;
+    cursor)
+      graphify install --platform cursor || true
+      graphify install --project --platform cursor || true
+      ;;
+    *)
+      graphify install --platform cursor || true
+      graphify install --platform claude || true
+      graphify install --project --platform cursor || true
+      graphify install --project --platform claude || true
+      ;;
+  esac
   log "Graphify $(graphify --version)"
 }
 
@@ -819,7 +874,11 @@ print_success() {
   echo "              ${HOME}/.claude/skills"
   echo ""
   echo "  1. bun run dev"
-  echo "  2. Open this repo in Cursor (fully restart) or run: claude"
+  if [ "$AGENT" = "claude" ]; then
+    echo "  2. Run: claude   (in this folder)"
+  else
+    echo "  2. Open this repo in Cursor and fully restart Cursor so skills load."
+  fi
   echo "  3. Paste the dashboard token when the UI asks."
   echo "  4. Add git repos under Projects in the dashboard."
   echo ""
@@ -830,7 +889,11 @@ health_check() {
   if command -v graphify >/dev/null 2>&1; then
     log "graphify: $(graphify --version 2>/dev/null || echo ok)"
   else
-    warn "graphify not on PATH — open a new terminal or restart Cursor / Claude Code"
+    if [ "$AGENT" = "claude" ]; then
+      warn "graphify not on PATH — open a new terminal or start a new claude session"
+    else
+      warn "graphify not on PATH — open a new terminal or restart Cursor"
+    fi
   fi
 }
 

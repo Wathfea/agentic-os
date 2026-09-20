@@ -1,6 +1,7 @@
 #Requires -Version 5.1
 param(
-    [string]$PrepareVault = ""
+    [string]$PrepareVault = "",
+    [string]$Agent = ""
 )
 $ErrorActionPreference = "Stop"
 
@@ -9,6 +10,7 @@ $Root = Resolve-Path (Join-Path $ScriptDir "..")
 Set-Location $Root
 
 $PathMarker = "# agentic-os-path"
+$CodingAgent = ""
 
 try { Clear-Host } catch {}
 
@@ -170,39 +172,71 @@ function Install-ClaudeApp {
     }
 }
 
-function Ensure-Agents {
-    Write-Host ""
-    Log "Preparing Cursor and Claude Code. Skills are copied for both."
-    $haveCursor = Test-CursorInstalled
-    $haveClaude = Test-ClaudeInstalled
-    if ($haveCursor) { Log "Cursor is already installed" }
-    if ($haveClaude) { Log "Claude Code is already installed" }
-    if ($haveCursor -or $haveClaude) { return }
-    if ([Console]::IsInputRedirected) {
-        Warn "No coding agent found (non-interactive). Install Cursor (https://cursor.com/download) or Claude Code (https://code.claude.com/docs/en/overview)"
+function Normalize-Agent([string]$raw) {
+    if (-not $raw) { return "" }
+    $v = ($raw.Trim().ToLower() -replace '\s', '')
+    if (@("1", "c", "cursor") -contains $v) { return "cursor" }
+    if (@("2", "a", "claude", "claudecode", "claude-code", "anthropic") -contains $v) { return "claude" }
+    return ""
+}
+
+function Get-CodingAgent {
+    $raw = $Agent
+    if (-not $raw) { $raw = $env:AGENTIC_AGENT }
+    if ($raw) {
+        $script:CodingAgent = Normalize-Agent $raw
+        if (-not $script:CodingAgent) { Die "AGENTIC_AGENT must be cursor or claude" }
+        Log "Coding agent: $($script:CodingAgent)"
         return
     }
-    Log "Installing Cursor..."
-    if ((Install-CursorApp) -and (Test-CursorInstalled)) {
-        $haveCursor = $true
-        Log "Cursor installed"
+    if ([Console]::IsInputRedirected) {
+        Warn "Set AGENTIC_AGENT=cursor or AGENTIC_AGENT=claude (non-interactive)"
+        return
     }
-    Log "Installing Claude Code..."
-    if ((Install-ClaudeApp) -and (Test-ClaudeInstalled)) {
-        $haveClaude = $true
-        Log "Claude Code installed"
+    Write-Host ""
+    Log "Which coding agent do you use?"
+    Log "  1) Cursor"
+    Log "  2) Claude Code"
+    while (-not $script:CodingAgent) {
+        $choice = Read-Host "  [1/2]"
+        $script:CodingAgent = Normalize-Agent $choice
+        if (-not $script:CodingAgent) {
+            Warn "Choose 1 (Cursor) or 2 (Claude Code)"
+        }
     }
-    if ($haveCursor -or $haveClaude) { return }
-    Log "Install Cursor from https://cursor.com/download or Claude Code from https://code.claude.com/docs/en/overview"
-    try { Start-Process "https://cursor.com/download" } catch {}
-    try { Start-Process "https://code.claude.com/docs/en/overview" } catch {}
-    Read-Host "  Press Enter when Cursor or Claude Code is installed (or continue without them)" | Out-Null
-    if (Test-CursorInstalled) {
-        Log "Cursor is installed"
-    } elseif (Test-ClaudeInstalled) {
-        Log "Claude Code is installed"
+    Log "Coding agent: $($script:CodingAgent)"
+}
+
+function Ensure-OneAgent($name, $present, $install, $url) {
+    if (& $present) {
+        Log "$name is already installed"
+        return
+    }
+    if ([Console]::IsInputRedirected) {
+        Warn "$name not found (non-interactive). Install from $url"
+        return
+    }
+    Log "Installing $name..."
+    if ((& $install) -and (& $present)) {
+        Log "$name installed"
+        return
+    }
+    Log "Install $name from $url"
+    try { Start-Process $url } catch {}
+    Read-Host "  Press Enter when $name is installed (or continue without it)" | Out-Null
+    if (& $present) {
+        Log "$name is installed"
     } else {
-        Warn "No coding agent detected - skills will still be copied to ~/.cursor/skills and ~/.claude/skills"
+        Warn "$name not detected - skills will still be copied"
+    }
+}
+
+function Ensure-Agents {
+    Get-CodingAgent
+    if ($script:CodingAgent -eq "cursor") {
+        Ensure-OneAgent "Cursor" { Test-CursorInstalled } { Install-CursorApp } "https://cursor.com/download"
+    } elseif ($script:CodingAgent -eq "claude") {
+        Ensure-OneAgent "Claude Code" { Test-ClaudeInstalled } { Install-ClaudeApp } "https://code.claude.com/docs/en/overview"
     }
 }
 
@@ -494,10 +528,18 @@ function Install-Graphify {
     uv tool install --upgrade graphifyy
     Ensure-PathNow
     if (-not (Get-Command graphify -ErrorAction SilentlyContinue)) { Die "graphify not found after uv tool install" }
-    graphify install --platform cursor
-    graphify install --platform claude
-    graphify install --project --platform cursor
-    graphify install --project --platform claude
+    if ($script:CodingAgent -eq "claude") {
+        graphify install --platform claude
+        graphify install --project --platform claude
+    } elseif ($script:CodingAgent -eq "cursor") {
+        graphify install --platform cursor
+        graphify install --project --platform cursor
+    } else {
+        graphify install --platform cursor
+        graphify install --platform claude
+        graphify install --project --platform cursor
+        graphify install --project --platform claude
+    }
     Log "Graphify $(graphify --version)"
 }
 
@@ -626,7 +668,11 @@ function Print-Success($codeRoot, $brainRoot) {
     Write-Host "              $env:USERPROFILE\.claude\skills"
     Write-Host ""
     Write-Host "  1. bun run dev"
-    Write-Host "  2. Open this repo in Cursor (fully restart) or run: claude"
+    if ($script:CodingAgent -eq "claude") {
+        Write-Host "  2. Run: claude   (in this folder)"
+    } else {
+        Write-Host "  2. Open this repo in Cursor and fully restart Cursor so skills load."
+    }
     Write-Host "  3. Paste the dashboard token when the UI asks."
     Write-Host "  4. Add git repos under Projects in the dashboard."
     Write-Host ""
@@ -637,7 +683,11 @@ function Test-Health {
     if (Get-Command graphify -ErrorAction SilentlyContinue) {
         Log "graphify: $(graphify --version 2>$null)"
     } else {
-        Warn "graphify not on PATH - open a new terminal or restart Cursor / Claude Code"
+        if ($script:CodingAgent -eq "claude") {
+            Warn "graphify not on PATH - open a new terminal or start a new claude session"
+        } else {
+            Warn "graphify not on PATH - open a new terminal or restart Cursor"
+        }
     }
 }
 
